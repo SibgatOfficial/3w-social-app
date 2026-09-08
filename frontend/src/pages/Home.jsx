@@ -1,120 +1,132 @@
 import { useCallback, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
+import Container from "@mui/material/Container";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import InboxIcon from "@mui/icons-material/Inbox";
 import API from "../services/api";
 import CreatePost from "../components/CreatePost";
 import PostCard from "../components/PostCard";
 import Navbar from "../components/Navbar";
-import BottomNav from "../components/BottomNav";
 
 function Home() {
   const token = localStorage.getItem("token");
-
   const [posts, setPosts] = useState([]);
   const [activeTab, setActiveTab] = useState("all");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const fetchPosts = useCallback(async () => {
+  const fetchPosts = useCallback(async (nextPage = 1, append = false) => {
     try {
-      const response = await API.get("/posts");
-      setPosts(response.data.posts || response.data);
+      setLoading(true);
+      const response = await API.get(`/posts?page=${nextPage}`);
+      const { posts: newPosts, totalPages } = response.data;
+
+      setPosts((prev) => (append ? [...prev, ...newPosts] : newPosts));
+      setHasMore(nextPage < totalPages);
+      setPage(nextPage);
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (token) {
-      const timer = setTimeout(() => {
-        fetchPosts();
-      }, 0);
-
+      const timer = setTimeout(() => fetchPosts(1), 0);
       return () => clearTimeout(timer);
     }
   }, [fetchPosts, token]);
 
   function handlePostUpdate(updatedPost) {
-    setPosts((prevPosts) =>
-      prevPosts.map((post) =>
-        post._id === updatedPost._id ? updatedPost : post,
-      ),
+    setPosts((prev) =>
+      prev.map((post) => (post._id === updatedPost._id ? updatedPost : post)),
     );
   }
+
   function handleDelete(postId) {
-    setPosts((prevPosts) => prevPosts.filter((post) => post._id !== postId));
+    setPosts((prev) => prev.filter((post) => post._id !== postId));
   }
 
   function getSortedPosts() {
-    const sortedPosts = [...posts];
+    const sorted = [...posts];
 
     if (activeTab === "liked") {
-      return sortedPosts.sort((a, b) => b.likes.length - a.likes.length);
+      return sorted.sort((a, b) => b.likes.length - a.likes.length);
     }
 
     if (activeTab === "commented") {
-      return sortedPosts.sort((a, b) => b.comments.length - a.comments.length);
+      return sorted.sort((a, b) => b.comments.length - a.comments.length);
     }
 
-    return sortedPosts.sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-    );
+    return sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 
   if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  const displayedPosts = getSortedPosts();
-
   return (
-    <div className="home-page">
+    <>
       <Navbar />
 
-      <main className="feed">
-        <div className="search-box">
-          <span>⌕</span>
+      <Container maxWidth="sm" sx={{ pt: 2, pb: 4 }}>
+        <CreatePost onPostCreated={() => fetchPosts(1)} />
 
-          <input type="text" placeholder="Search promotions, users, posts..." />
+        <Tabs
+          value={activeTab}
+          onChange={(event, value) => setActiveTab(value)}
+          sx={{ mb: 1, borderRadius: 3, bgcolor: "rgba(120, 150, 255, 0.06)" }}
+        >
+          <Tab value="all" label="All Posts" />
+          <Tab value="liked" label="Most Liked" />
+          <Tab value="commented" label="Most Commented" />
+        </Tabs>
 
-          <button>⌕</button>
-        </div>
-
-        <CreatePost onPostCreated={fetchPosts} />
-
-        <div className="feed-tabs">
-          <button
-            className={activeTab === "all" ? "selected" : ""}
-            onClick={() => setActiveTab("all")}
-          >
-            All Posts
-          </button>
-
-          <button
-            className={activeTab === "liked" ? "selected" : ""}
-            onClick={() => setActiveTab("liked")}
-          >
-            Most Liked
-          </button>
-
-          <button
-            className={activeTab === "commented" ? "selected" : ""}
-            onClick={() => setActiveTab("commented")}
-          >
-            Most Commented
-          </button>
-        </div>
-
-        {displayedPosts.map((post) => (
-          <PostCard
+        {getSortedPosts().map((post, i) => (
+          <Box
             key={post._id}
-            post={post}
-            onLike={handlePostUpdate}
-            onComment={handlePostUpdate}
-            onDelete={handleDelete}
-          />
+            className="fade-up"
+            style={{ animationDelay: `${Math.min(i * 60, 420)}ms` }}
+          >
+            <PostCard
+              post={post}
+              onUpdate={handlePostUpdate}
+              onDelete={handleDelete}
+            />
+          </Box>
         ))}
-      </main>
 
-      <BottomNav />
-    </div>
+        {posts.length === 0 && !loading && (
+          <Box sx={{ textAlign: "center", py: 8 }} className="pop-in">
+            <InboxIcon sx={{ fontSize: 56, color: "text.secondary" }} />
+            <Typography color="text.secondary" sx={{ mt: 1 }}>
+              No posts yet. Be the first!
+            </Typography>
+          </Box>
+        )}
+
+        {hasMore && (
+          <Box sx={{ textAlign: "center", py: 2 }}>
+            <Button
+              className="pill-btn"
+              variant="contained"
+              color="primary"
+              startIcon={loading ? <CircularProgress size={18} /> : undefined}
+              onClick={() => fetchPosts(page + 1, true)}
+            >
+              Load more
+            </Button>
+          </Box>
+        )}
+      </Container>
+    </>
   );
 }
 

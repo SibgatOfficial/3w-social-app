@@ -1,114 +1,107 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
+import Box from "@mui/material/Box";
 import API from "../services/api";
 
 function Signup() {
-  const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    password: "",
-  });
-
+  const [form, setForm] = useState({ username: "", email: "", password: "" });
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
   function handleChange(e) {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setForm({ ...form, [e.target.name]: e.target.value });
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
 
     try {
-      await API.post("/auth/signup", formData);
-
-      setMessage("Account created successfully!");
-
-      setTimeout(() => {
-        navigate("/login");
-      }, 1000);
+      await API.post("/auth/signup", form);
+      navigate("/login");
     } catch (error) {
       setMessage(error.response?.data?.message || "Signup failed");
     }
   }
 
   return (
-    <div
-      style={{
+    <Box
+      sx={{
         minHeight: "100vh",
         display: "flex",
-        justifyContent: "center",
         alignItems: "center",
-        background: "#0f1115",
+        justifyContent: "center",
+        p: 2,
       }}
     >
-      <form
+      <Paper
+        className="glass fade-up"
+        component="form"
         onSubmit={handleSubmit}
-        style={{
-          width: "100%",
-          maxWidth: "400px",
-          background: "#181b22",
-          padding: "30px",
-          borderRadius: "16px",
-          border: "1px solid #292d36",
-        }}
+        elevation={0}
+        sx={{ p: 4, width: "100%", maxWidth: 400, textAlign: "center", borderRadius: 4 }}
       >
-        <h1 style={{ textAlign: "center" }}>TaskPlanet</h1>
+        <Typography className="gradient-text" variant="h4" sx={{ fontWeight: 800 }}>
+          Social
+        </Typography>
 
-        <p style={{ textAlign: "center" }}>Create your account</p>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          Create your account
+        </Typography>
 
-        <input
-          type="text"
+        <TextField
           name="username"
-          placeholder="Username"
-          value={formData.username}
+          label="Username"
+          fullWidth
+          margin="normal"
+          value={form.username}
           onChange={handleChange}
           required
         />
 
-        <input
-          type="email"
+        <TextField
           name="email"
-          placeholder="Email"
-          value={formData.email}
+          label="Email"
+          type="email"
+          fullWidth
+          margin="normal"
+          value={form.email}
           onChange={handleChange}
           required
-          style={{ marginTop: "12px" }}
         />
 
-        <input
-          type="password"
+        <TextField
           name="password"
-          placeholder="Password"
-          value={formData.password}
+          label="Password"
+          type="password"
+          fullWidth
+          margin="normal"
+          value={form.password}
           onChange={handleChange}
           required
-          style={{ marginTop: "12px" }}
         />
 
-        <button
+        {message && <Typography color="error">{message}</Typography>}
+
+        <Button
+          className="pill-btn"
           type="submit"
-          style={{
-            width: "100%",
-            marginTop: "15px",
-          }}
+          variant="contained"
+          size="large"
+          fullWidth
+          sx={{ mt: 2 }}
         >
           Create Account
-        </button>
+        </Button>
 
-        {message && <p style={{ textAlign: "center" }}>{message}</p>}
-
-        <p style={{ textAlign: "center", marginTop: "20px" }}>
-          Already have an account?{" "}
-          <Link to="/login" style={{ color: "#8b7cf6" }}>
-            Login
-          </Link>
-        </p>
-      </form>
-    </div>
+        <Typography variant="body2" sx={{ mt: 3 }}>
+          Already have an account? <Link to="/login">Login</Link>
+        </Typography>
+      </Paper>
+    </Box>
   );
 }
 

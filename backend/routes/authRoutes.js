@@ -13,6 +13,39 @@ router.get("/me", protect, (req, res) => {
   });
 });
 
+// Update profile picture
+router.put("/avatar", protect, async (req, res) => {
+  try {
+    const { avatarUrl } = req.body;
+
+    if (!avatarUrl) {
+      return res.status(400).json({ message: "Avatar URL is required" });
+    }
+
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.avatar = avatarUrl;
+    await user.save();
+
+    res.json({
+      message: "Profile picture updated",
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 router.post("/signup", async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -42,6 +75,7 @@ router.post("/signup", async (req, res) => {
         id: user._id,
         username: user.username,
         email: user.email,
+        avatar: user.avatar,
       },
     });
   } catch (error) {
@@ -94,6 +128,7 @@ router.post("/login", async (req, res) => {
         id: user._id,
         username: user.username,
         email: user.email,
+        avatar: user.avatar,
       },
     });
   } catch (error) {

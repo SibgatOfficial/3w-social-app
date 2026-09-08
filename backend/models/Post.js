@@ -7,6 +7,11 @@ const postSchema = new mongoose.Schema(
       required: true,
     },
 
+    avatar: {
+      type: String,
+      default: "",
+    },
+
     text: {
       type: String,
       default: "",
@@ -65,6 +70,19 @@ const postSchema = new mongoose.Schema(
         },
       },
     ],
+
+    poll: {
+      question: { type: String, default: "" },
+      options: [
+        {
+          text: { type: String, required: true },
+          votes: [{ type: String }],
+        },
+      ],
+      endsAt: { type: Date },
+    },
+
+    reports: [{ type: String }],
   },
   { timestamps: true },
 );

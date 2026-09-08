@@ -6,18 +6,23 @@ const router = express.Router();
 
 router.post("/", protect, async (req, res) => {
   try {
-    const { text, image } = req.body;
+    const { text, image, poll } = req.body;
 
-    if (!text && !image) {
+    if (!text && !image && !poll) {
       return res.status(400).json({
-        message: "Post must contain text or image",
+        message: "Post must contain text, image or a poll",
       });
     }
 
+    // Resolve the author's avatar for the feed
+    const author = await User.findOne({ username: req.user.username });
+
     const post = await Post.create({
       username: req.user.username,
+      avatar: author?.avatar || "",
       text: text || "",
       image: image || "",
+      poll: poll || undefined,
     });
 
     res.status(201).json({
@@ -59,6 +64,26 @@ router.get("/", async (req, res) => {
     });
   }
 });
+
+// GET SINGLE POST (for the detail page)
+router.get("/:id", async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    res.json({ post });
+  } catch (error) {
+    if (error.name === "CastError") {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 // LIKE / UNLIKE POST
 router.post("/:id/like", protect, async (req, res) => {
   try {
@@ -91,6 +116,75 @@ router.post("/:id/like", protect, async (req, res) => {
     res.status(500).json({
       message: "Server error",
     });
+  }
+});
+
+// VOTE ON A POLL
+router.post("/:id/vote", protect, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    if (!post.poll || !post.poll.question) {
+      return res.status(400).json({ message: "This post has no poll" });
+    }
+
+    if (post.poll.endsAt && post.poll.endsAt < new Date()) {
+      return res.status(400).json({ message: "Poll has ended" });
+    }
+
+    const { optionIndex } = req.body;
+    const option = post.poll.options[optionIndex];
+
+    if (!option) {
+      return res.status(400).json({ message: "Invalid poll option" });
+    }
+
+    const username = req.user.username;
+
+    // One vote per user — remove them from any other option first
+    for (const opt of post.poll.options) {
+      if (opt.votes.includes(username)) {
+        opt.votes = opt.votes.filter((u) => u !== username);
+      }
+    }
+
+    if (!option.votes.includes(username)) {
+      option.votes.push(username);
+    }
+
+    await post.save();
+
+    res.json({ post });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// REPORT A POST
+router.post("/:id/report", protect, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const username = req.user.username;
+
+    if (!post.reports.includes(username)) {
+      post.reports.push(username);
+      await post.save();
+    }
+
+    res.json({ message: "Post reported" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
