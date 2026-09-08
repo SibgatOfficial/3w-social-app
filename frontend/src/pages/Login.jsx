@@ -1,10 +1,16 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import API from "../services/api";
 
 function Login() {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+
+  const [message, setMessage] = useState("");
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -15,10 +21,23 @@ function Login() {
     });
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
 
-    console.log(formData);
+    try {
+      const response = await API.post("/auth/login", formData);
+
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+
+      setMessage("Login successful!");
+
+      setTimeout(() => {
+        navigate("/");
+      }, 500);
+    } catch (error) {
+      setMessage(error.response?.data?.message || "Something went wrong");
+    }
   }
 
   return (
@@ -43,6 +62,8 @@ function Login() {
         />
 
         <button type="submit">Login</button>
+
+        {message && <p>{message}</p>}
       </form>
     </div>
   );
