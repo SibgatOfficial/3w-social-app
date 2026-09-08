@@ -21,7 +21,6 @@ function CreatePost({ onPostCreated }) {
 
       let imageUrl = "";
 
-      // Upload image to Cloudinary
       if (image) {
         const formData = new FormData();
 
@@ -32,9 +31,7 @@ function CreatePost({ onPostCreated }) {
         );
 
         const cloudinaryResponse = await fetch(
-          `https://api.cloudinary.com/v1_1/${
-            import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
-          }/image/upload`,
+          `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
           {
             method: "POST",
             body: formData,
@@ -52,7 +49,6 @@ function CreatePost({ onPostCreated }) {
         imageUrl = cloudinaryData.secure_url;
       }
 
-      // Create post in our backend
       await API.post("/posts", {
         text,
         image: imageUrl,
@@ -60,7 +56,7 @@ function CreatePost({ onPostCreated }) {
 
       setText("");
       setImage(null);
-      setMessage("Post created successfully!");
+      setMessage("");
 
       onPostCreated();
     } catch (error) {
@@ -76,27 +72,49 @@ function CreatePost({ onPostCreated }) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h2>Create Post</h2>
+    <section className="create-card">
+      <div className="create-header">
+        <h2>Create Post</h2>
+      </div>
 
       <textarea
-        placeholder="What's on your mind?"
+        placeholder="What's on your mind? 😊"
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
 
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => setImage(e.target.files[0])}
-      />
+      {image && (
+        <div className="selected-image">
+          <img src={URL.createObjectURL(image)} alt="Preview" />
+        </div>
+      )}
 
-      <button type="submit" disabled={uploading}>
-        {uploading ? "Uploading..." : "Post"}
-      </button>
+      <div className="create-bottom">
+        <label className="icon-button">
+          📷
+          <input
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => setImage(e.target.files[0])}
+          />
+        </label>
 
-      {message && <p>{message}</p>}
-    </form>
+        <button className="icon-button">😊</button>
+
+        <button className="icon-button">☰</button>
+
+        <button
+          className="post-button"
+          onClick={handleSubmit}
+          disabled={uploading}
+        >
+          {uploading ? "Uploading..." : "➤ Post"}
+        </button>
+      </div>
+
+      {message && <p className="error-message">{message}</p>}
+    </section>
   );
 }
 

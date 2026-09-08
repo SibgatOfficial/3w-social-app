@@ -10,13 +10,14 @@ function Home() {
   const token = localStorage.getItem("token");
 
   const [posts, setPosts] = useState([]);
+  const [activeTab, setActiveTab] = useState("all");
 
   const fetchPosts = useCallback(async () => {
     try {
-      const response = await API.get("/posts?page=1");
-      setPosts(response.data.posts);
+      const response = await API.get("/posts");
+      setPosts(response.data.posts || response.data);
     } catch (error) {
-      console.error("Error fetching posts:", error);
+      console.error(error);
     }
   }, []);
 
@@ -37,26 +38,77 @@ function Home() {
       ),
     );
   }
+  function handleDelete(postId) {
+    setPosts((prevPosts) => prevPosts.filter((post) => post._id !== postId));
+  }
+
+  function getSortedPosts() {
+    const sortedPosts = [...posts];
+
+    if (activeTab === "liked") {
+      return sortedPosts.sort((a, b) => b.likes.length - a.likes.length);
+    }
+
+    if (activeTab === "commented") {
+      return sortedPosts.sort((a, b) => b.comments.length - a.comments.length);
+    }
+
+    return sortedPosts.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+    );
+  }
 
   if (!token) {
     return <Navigate to="/login" replace />;
   }
+
+  const displayedPosts = getSortedPosts();
 
   return (
     <div className="home-page">
       <Navbar />
 
       <main className="feed">
-        <h1>Social Feed</h1>
+        <div className="search-box">
+          <span>⌕</span>
+
+          <input type="text" placeholder="Search promotions, users, posts..." />
+
+          <button>⌕</button>
+        </div>
 
         <CreatePost onPostCreated={fetchPosts} />
 
-        {posts.map((post) => (
+        <div className="feed-tabs">
+          <button
+            className={activeTab === "all" ? "selected" : ""}
+            onClick={() => setActiveTab("all")}
+          >
+            All Posts
+          </button>
+
+          <button
+            className={activeTab === "liked" ? "selected" : ""}
+            onClick={() => setActiveTab("liked")}
+          >
+            Most Liked
+          </button>
+
+          <button
+            className={activeTab === "commented" ? "selected" : ""}
+            onClick={() => setActiveTab("commented")}
+          >
+            Most Commented
+          </button>
+        </div>
+
+        {displayedPosts.map((post) => (
           <PostCard
             key={post._id}
             post={post}
             onLike={handlePostUpdate}
             onComment={handlePostUpdate}
+            onDelete={handleDelete}
           />
         ))}
       </main>

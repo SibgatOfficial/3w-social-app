@@ -4,12 +4,32 @@ function BottomNav() {
   const navigate = useNavigate();
 
   return (
-    <div className="bottom-nav">
-      <button onClick={() => navigate("/")}>🏠 Home</button>
-      <button>🔍 Search</button>
-      <button>➕ Create</button>
-      <button>👤 Profile</button>
-    </div>
+    <nav className="bottom-nav">
+      <button onClick={() => navigate("/")}>
+        <span>⌂</span>
+        Home
+      </button>
+
+      <button>
+        <span>☷</span>
+        Tasks
+      </button>
+
+      <button className="active">
+        <span>◎</span>
+        Social
+      </button>
+
+      <button>
+        <span>♛</span>
+        Leaderboard
+      </button>
+
+      <button>
+        <span>•••</span>
+        Chat
+      </button>
+    </nav>
   );
 }
 

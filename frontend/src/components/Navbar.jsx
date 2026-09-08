@@ -11,15 +11,27 @@ function Navbar() {
   }
 
   return (
-    <nav className="top-nav">
-      <div className="nav-logo">TaskPlanet</div>
+    <header className="top-nav">
+      <div className="brand">Social</div>
 
-      <div className="nav-user">
-        <span>Hi, {user?.username}</span>
+      <div className="nav-right">
+        <div className="points-pill">
+          <span>50</span> ⭐
+        </div>
 
-        <button onClick={handleLogout}>Logout</button>
+        <div className="money-pill">₹0.00</div>
+
+        <div className="moon">☾</div>
+
+        <div className="profile-avatar">
+          {user?.username?.charAt(0).toUpperCase() || "U"}
+        </div>
+
+        <button className="logout-btn" onClick={handleLogout}>
+          Logout
+        </button>
       </div>
-    </nav>
+    </header>
   );
 }
 

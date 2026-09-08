@@ -1,7 +1,7 @@
 const express = require("express");
 const Post = require("../models/Post");
 const protect = require("../middleware/authMiddleware");
-
+const User = require("../models/User");
 const router = express.Router();
 
 router.post("/", protect, async (req, res) => {
@@ -97,7 +97,7 @@ router.post("/:id/like", protect, async (req, res) => {
 // ADD COMMENT
 router.post("/:id/comments", protect, async (req, res) => {
   try {
-    const { text } = req.body;
+    const { text, replyTo } = req.body;
 
     if (!text || !text.trim()) {
       return res.status(400).json({
@@ -113,10 +113,28 @@ router.post("/:id/comments", protect, async (req, res) => {
       });
     }
 
-    post.comments.push({
-      username: req.user.username,
-      text: text.trim(),
-    });
+    // Normal comment
+    if (!replyTo) {
+      post.comments.push({
+        username: req.user.username,
+        text: text.trim(),
+      });
+    } else {
+      // Reply to an existing comment
+      const comment = post.comments.id(replyTo);
+
+      if (!comment) {
+        return res.status(404).json({
+          message: "Comment not found",
+        });
+      }
+
+      comment.replies.push({
+        username: req.user.username,
+        text: text.trim(),
+        replyTo: comment.username,
+      });
+    }
 
     await post.save();
 
@@ -126,6 +144,82 @@ router.post("/:id/comments", protect, async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
+    res.status(500).json({
+      message: "Server error",
+    });
+  }
+});
+
+router.post("/:username/follow", protect, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.user.userId);
+    const targetUser = await User.findOne({
+      username: req.params.username,
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    if (currentUser.username === targetUser.username) {
+      return res.status(400).json({
+        message: "You cannot follow yourself",
+      });
+    }
+
+    const alreadyFollowing = currentUser.following.includes(
+      targetUser.username,
+    );
+
+    if (alreadyFollowing) {
+      currentUser.following = currentUser.following.filter(
+        (username) => username !== targetUser.username,
+      );
+    } else {
+      currentUser.following.push(targetUser.username);
+    }
+
+    await currentUser.save();
+
+    res.json({
+      following: !alreadyFollowing,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Server error",
+    });
+  }
+});
+
+router.delete("/:id", protect, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({
+        message: "Post not found",
+      });
+    }
+
+    if (post.username !== req.user.username) {
+      return res.status(403).json({
+        message: "You can only delete your own posts",
+      });
+    }
+
+    await Post.findByIdAndDelete(req.params.id);
+
+    res.json({
+      message: "Post deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+
     res.status(500).json({
       message: "Server error",
     });
