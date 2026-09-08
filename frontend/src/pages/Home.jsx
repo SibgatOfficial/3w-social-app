@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 import API from "../services/api";
 import CreatePost from "../components/CreatePost";
 import PostCard from "../components/PostCard";
+import Navbar from "../components/Navbar";
+import BottomNav from "../components/BottomNav";
 
 function Home() {
+  const token = localStorage.getItem("token");
+
   const [posts, setPosts] = useState([]);
 
   const fetchPosts = useCallback(async () => {
@@ -16,12 +21,14 @@ function Home() {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchPosts();
-    }, 0);
+    if (token) {
+      const timer = setTimeout(() => {
+        fetchPosts();
+      }, 0);
 
-    return () => clearTimeout(timer);
-  }, [fetchPosts]);
+      return () => clearTimeout(timer);
+    }
+  }, [fetchPosts, token]);
 
   function handlePostUpdate(updatedPost) {
     setPosts((prevPosts) =>
@@ -31,20 +38,30 @@ function Home() {
     );
   }
 
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
-    <div>
-      <h1>Social Feed</h1>
+    <div className="home-page">
+      <Navbar />
 
-      <CreatePost onPostCreated={fetchPosts} />
+      <main className="feed">
+        <h1>Social Feed</h1>
 
-      {posts.map((post) => (
-        <PostCard
-          key={post._id}
-          post={post}
-          onLike={handlePostUpdate}
-          onComment={handlePostUpdate}
-        />
-      ))}
+        <CreatePost onPostCreated={fetchPosts} />
+
+        {posts.map((post) => (
+          <PostCard
+            key={post._id}
+            post={post}
+            onLike={handlePostUpdate}
+            onComment={handlePostUpdate}
+          />
+        ))}
+      </main>
+
+      <BottomNav />
     </div>
   );
 }

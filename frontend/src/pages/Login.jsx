@@ -1,23 +1,20 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import API from "../services/api";
 
 function Login() {
-  const navigate = useNavigate();
-
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
   const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
   function handleChange(e) {
-    const { name, value } = e.target;
-
     setFormData({
       ...formData,
-      [name]: value,
+      [e.target.name]: e.target.value,
     });
   }
 
@@ -30,20 +27,36 @@ function Login() {
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
 
-      setMessage("Login successful!");
-
-      setTimeout(() => {
-        navigate("/");
-      }, 500);
+      navigate("/");
     } catch (error) {
-      setMessage(error.response?.data?.message || "Something went wrong");
+      setMessage(error.response?.data?.message || "Login failed");
     }
   }
 
   return (
-    <div className="auth-container">
-      <form className="auth-form" onSubmit={handleSubmit}>
-        <h1>Welcome Back</h1>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        background: "#0f1115",
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          width: "100%",
+          maxWidth: "400px",
+          background: "#181b22",
+          padding: "30px",
+          borderRadius: "16px",
+          border: "1px solid #292d36",
+        }}
+      >
+        <h1 style={{ textAlign: "center" }}>TaskPlanet</h1>
+
+        <p style={{ textAlign: "center" }}>Login to your account</p>
 
         <input
           type="email"
@@ -51,6 +64,7 @@ function Login() {
           placeholder="Email"
           value={formData.email}
           onChange={handleChange}
+          required
         />
 
         <input
@@ -59,11 +73,28 @@ function Login() {
           placeholder="Password"
           value={formData.password}
           onChange={handleChange}
+          required
+          style={{ marginTop: "12px" }}
         />
 
-        <button type="submit">Login</button>
+        <button
+          type="submit"
+          style={{
+            width: "100%",
+            marginTop: "15px",
+          }}
+        >
+          Login
+        </button>
 
-        {message && <p>{message}</p>}
+        {message && <p style={{ textAlign: "center" }}>{message}</p>}
+
+        <p style={{ textAlign: "center", marginTop: "20px" }}>
+          Don't have an account?{" "}
+          <Link to="/signup" style={{ color: "#8b7cf6" }}>
+            Sign up
+          </Link>
+        </p>
       </form>
     </div>
   );

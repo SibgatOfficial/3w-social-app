@@ -31,22 +31,27 @@ function PostCard({ post, onLike, onComment }) {
   }
 
   return (
-    <div>
-      <h3>{post.username}</h3>
+    <article className="post-card">
+      <div className="post-header">
+        <div className="avatar">{post.username.charAt(0).toUpperCase()}</div>
 
-      {post.text && <p>{post.text}</p>}
-
-      {post.image && (
-        <img src={post.image} alt="Post" style={{ maxWidth: "400px" }} />
-      )}
-
-      <div>
-        <button onClick={handleLike}>❤️ {post.likes.length}</button>
-
-        <span> 💬 {post.comments.length}</span>
+        <div>
+          <strong>{post.username}</strong>
+          <small>Just now</small>
+        </div>
       </div>
 
-      <form onSubmit={handleComment}>
+      {post.text && <p className="post-text">{post.text}</p>}
+
+      {post.image && <img className="post-image" src={post.image} alt="Post" />}
+
+      <div className="post-actions">
+        <button onClick={handleLike}>❤️ {post.likes.length}</button>
+
+        <span>💬 {post.comments.length}</span>
+      </div>
+
+      <form className="comment-form" onSubmit={handleComment}>
         <input
           type="text"
           placeholder="Write a comment..."
@@ -54,16 +59,18 @@ function PostCard({ post, onLike, onComment }) {
           onChange={(e) => setComment(e.target.value)}
         />
 
-        <button type="submit">Comment</button>
+        <button type="submit">Send</button>
       </form>
 
-      {post.comments.map((item, index) => (
-        <div key={index}>
-          <strong>{item.username}</strong>
-          <p>{item.text}</p>
-        </div>
-      ))}
-    </div>
+      <div className="comments">
+        {post.comments.map((item, index) => (
+          <div className="comment" key={index}>
+            <strong>{item.username}</strong>
+            <span>{item.text}</span>
+          </div>
+        ))}
+      </div>
+    </article>
   );
 }
 

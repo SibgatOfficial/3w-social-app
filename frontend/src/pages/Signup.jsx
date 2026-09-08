@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import API from "../services/api";
 
 function Signup() {
-  const navigate = useNavigate();
-
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -12,13 +10,12 @@ function Signup() {
   });
 
   const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
   function handleChange(e) {
-    const { name, value } = e.target;
-
     setFormData({
       ...formData,
-      [name]: value,
+      [e.target.name]: e.target.value,
     });
   }
 
@@ -26,22 +23,42 @@ function Signup() {
     e.preventDefault();
 
     try {
-      const response = await API.post("/auth/signup", formData);
+      await API.post("/auth/signup", formData);
 
-      setMessage(response.data.message);
+      setMessage("Account created successfully!");
 
       setTimeout(() => {
         navigate("/login");
       }, 1000);
     } catch (error) {
-      setMessage(error.response?.data?.message || "Something went wrong");
+      setMessage(error.response?.data?.message || "Signup failed");
     }
   }
 
   return (
-    <div className="auth-container">
-      <form className="auth-form" onSubmit={handleSubmit}>
-        <h1>Create Account</h1>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        background: "#0f1115",
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          width: "100%",
+          maxWidth: "400px",
+          background: "#181b22",
+          padding: "30px",
+          borderRadius: "16px",
+          border: "1px solid #292d36",
+        }}
+      >
+        <h1 style={{ textAlign: "center" }}>TaskPlanet</h1>
+
+        <p style={{ textAlign: "center" }}>Create your account</p>
 
         <input
           type="text"
@@ -49,6 +66,7 @@ function Signup() {
           placeholder="Username"
           value={formData.username}
           onChange={handleChange}
+          required
         />
 
         <input
@@ -57,6 +75,8 @@ function Signup() {
           placeholder="Email"
           value={formData.email}
           onChange={handleChange}
+          required
+          style={{ marginTop: "12px" }}
         />
 
         <input
@@ -65,11 +85,28 @@ function Signup() {
           placeholder="Password"
           value={formData.password}
           onChange={handleChange}
+          required
+          style={{ marginTop: "12px" }}
         />
 
-        <button type="submit">Sign Up</button>
+        <button
+          type="submit"
+          style={{
+            width: "100%",
+            marginTop: "15px",
+          }}
+        >
+          Create Account
+        </button>
 
-        {message && <p>{message}</p>}
+        {message && <p style={{ textAlign: "center" }}>{message}</p>}
+
+        <p style={{ textAlign: "center", marginTop: "20px" }}>
+          Already have an account?{" "}
+          <Link to="/login" style={{ color: "#8b7cf6" }}>
+            Login
+          </Link>
+        </p>
       </form>
     </div>
   );
