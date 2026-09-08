@@ -13,8 +13,8 @@ function Home() {
 
   const fetchPosts = useCallback(async () => {
     try {
-      const response = await API.get("/posts");
-      setPosts(response.data);
+      const response = await API.get("/posts?page=1");
+      setPosts(response.data.posts);
     } catch (error) {
       console.error("Error fetching posts:", error);
     }

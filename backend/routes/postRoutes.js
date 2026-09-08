@@ -33,14 +33,27 @@ router.post("/", protect, async (req, res) => {
   }
 });
 
+// GET ALL POSTS WITH PAGINATION
 router.get("/", async (req, res) => {
   try {
-    const posts = await Post.find().sort({ createdAt: -1 });
+    const page = parseInt(req.query.page) || 1;
+    const limit = 5;
+    const skip = (page - 1) * limit;
 
-    res.json(posts);
+    const posts = await Post.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalPosts = await Post.countDocuments();
+
+    res.json({
+      posts,
+      currentPage: page,
+      totalPages: Math.ceil(totalPosts / limit),
+    });
   } catch (error) {
     console.error(error);
-
     res.status(500).json({
       message: "Server error",
     });

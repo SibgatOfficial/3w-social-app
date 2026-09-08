@@ -235,3 +235,42 @@ h3 {
 .comment span {
   color: #c7c9d1;
 }
+.top-nav {
+  height: 65px;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #12151a;
+  border-bottom: 1px solid #252932;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.nav-logo {
+  font-size: 21px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.nav-user span {
+  color: #a9adb7;
+}
+
+.nav-user button {
+  margin: 0;
+  padding: 8px 14px;
+}
+
+@media (max-width: 600px) {
+  .nav-user span {
+    display: none;
+  }
+}

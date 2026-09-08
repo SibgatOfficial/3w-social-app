@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 
 function Navbar() {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem("user"));
 
   function handleLogout() {
     localStorage.removeItem("token");
@@ -10,10 +11,14 @@ function Navbar() {
   }
 
   return (
-    <nav>
-      <h2>TaskPlanet Social</h2>
+    <nav className="top-nav">
+      <div className="nav-logo">TaskPlanet</div>
 
-      <button onClick={handleLogout}>Logout</button>
+      <div className="nav-user">
+        <span>Hi, {user?.username}</span>
+
+        <button onClick={handleLogout}>Logout</button>
+      </div>
     </nav>
   );
 }
