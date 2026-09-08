@@ -29,21 +29,15 @@ function CreatePost({ onPostCreated }) {
   const [uploading, setUploading] = useState(false);
 
   const [pollMode, setPollMode] = useState(false);
-  const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [pollDuration, setPollDuration] = useState(24);
 
   async function handleSubmit() {
-    if (!text.trim() && !image && !pollMode) {
-      setMessage("Write something, select an image or add a poll.");
-      return;
-    }
-
     if (pollMode) {
       const cleanOptions = pollOptions.map((o) => o.trim()).filter(Boolean);
 
-      if (!pollQuestion.trim()) {
-        setMessage("Add a poll question.");
+      if (!text.trim()) {
+        setMessage("Ask a question for your poll.");
         return;
       }
 
@@ -51,6 +45,9 @@ function CreatePost({ onPostCreated }) {
         setMessage("Add at least 2 poll options.");
         return;
       }
+    } else if (!text.trim() && !image) {
+      setMessage("Write something or select an image.");
+      return;
     }
 
     try {
@@ -59,9 +56,10 @@ function CreatePost({ onPostCreated }) {
 
       const imageUrl = image ? await uploadImage(image) : "";
 
+      // In poll mode the main text field IS the question (no duplicate caption)
       const poll = pollMode
         ? {
-            question: pollQuestion.trim(),
+            question: text.trim(),
             options: pollOptions
               .map((o) => o.trim())
               .filter(Boolean)
@@ -70,12 +68,15 @@ function CreatePost({ onPostCreated }) {
           }
         : null;
 
-      await API.post("/posts", { text, image: imageUrl, poll });
+      await API.post("/posts", {
+        text: pollMode ? "" : text,
+        image: imageUrl,
+        poll,
+      });
 
       setText("");
       setImage(null);
       setPollMode(false);
-      setPollQuestion("");
       setPollOptions(["", ""]);
       setPollDuration(24);
       onPostCreated();
@@ -96,6 +97,11 @@ function CreatePost({ onPostCreated }) {
     setPollOptions(next);
   }
 
+  function togglePoll() {
+    setPollMode(!pollMode);
+    setMessage(""); // clear any old error when switching modes
+  }
+
   return (
     <Card
       className="hover-lift"
@@ -107,7 +113,11 @@ function CreatePost({ onPostCreated }) {
           multiline
           minRows={3}
           fullWidth
-          placeholder="What's on your mind? share something nice"
+          placeholder={
+            pollMode
+              ? "Ask a question... (this becomes your poll question)"
+              : "What's on your mind? share something nice"
+          }
           value={text}
           onChange={(e) => setText(e.target.value)}
           sx={{ "& .MuiOutlinedInput-root": { borderRadius: "24px" } }}
@@ -123,14 +133,6 @@ function CreatePost({ onPostCreated }) {
               bgcolor: "rgba(120,150,255,0.07)",
             }}
           >
-            <TextField
-              size="small"
-              fullWidth
-              placeholder="Poll question (e.g. Which is better?)"
-              value={pollQuestion}
-              onChange={(e) => setPollQuestion(e.target.value)}
-            />
-
             {pollOptions.map((option, i) => (
               <TextField
                 key={i}
@@ -223,9 +225,9 @@ function CreatePost({ onPostCreated }) {
 
           <IconButton
             className="fluid-press"
-            title="Add poll"
+            title={pollMode ? "Remove poll" : "Add poll"}
             sx={{ color: pollMode ? "secondary.main" : "text.secondary" }}
-            onClick={() => setPollMode(!pollMode)}
+            onClick={togglePoll}
           >
             <PollIcon />
           </IconButton>

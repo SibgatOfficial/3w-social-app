@@ -3,6 +3,7 @@ import { useNavigate, useParams, Navigate } from "react-router-dom";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
+import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -50,11 +51,20 @@ function PostDetail() {
     return (
       <>
         <Navbar />
-        <Container maxWidth="sm" sx={{ py: 4, textAlign: "center" }}>
-          <Typography variant="h6">Post not found</Typography>
-          <IconButton onClick={() => navigate("/")}>
-            <ArrowBackIcon /> Back to feed
-          </IconButton>
+        <Container maxWidth="sm" sx={{ py: 8, textAlign: "center" }} className="fade-up">
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Post not found
+          </Typography>
+
+          <Button
+            className="pill-btn"
+            variant="contained"
+            color="primary"
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate("/")}
+          >
+            Back to feed
+          </Button>
         </Container>
       </>
     );

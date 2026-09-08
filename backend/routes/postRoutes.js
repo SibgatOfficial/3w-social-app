@@ -14,6 +14,23 @@ router.post("/", protect, async (req, res) => {
       });
     }
 
+    // A poll-only post is fine — but it needs a question and 2+ options
+    if (poll) {
+      const optionCount = (poll.options || []).filter(
+        (o) => o.text && o.text.trim(),
+      ).length;
+
+      if (!poll.question || !poll.question.trim()) {
+        return res.status(400).json({ message: "Poll needs a question" });
+      }
+
+      if (optionCount < 2) {
+        return res
+          .status(400)
+          .json({ message: "Poll needs at least 2 options" });
+      }
+    }
+
     // Resolve the author's avatar for the feed
     const author = await User.findOne({ username: req.user.username });
 
