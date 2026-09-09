@@ -82,6 +82,11 @@ const postSchema = new mongoose.Schema(
               required: true,
             },
 
+            parentId: {
+              type: String,
+              default: null,
+            },
+
             createdAt: {
               type: Date,
               default: Date.now,

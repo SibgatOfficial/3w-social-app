@@ -156,7 +156,7 @@ router.post("/:id/vote", protect, async (req, res) => {
 
 router.post("/:id/comments", protect, async (req, res) => {
   try {
-    const { text, commentId, replyTo } = req.body;
+    const { text, commentId, replyToId, replyTo } = req.body;
 
     if (!text || !text.trim()) {
       return res.status(400).json({ message: "Comment cannot be empty" });
@@ -177,6 +177,16 @@ router.post("/:id/comments", protect, async (req, res) => {
         return res.status(404).json({ message: "Comment not found" });
       }
 
+      // If replying to a specific reply (for nesting), verify it exists
+      let parentId = null;
+      if (replyToId) {
+        const parentReply = comment.replies.id(replyToId);
+        if (!parentReply) {
+          return res.status(404).json({ message: "Reply not found" });
+        }
+        parentId = parentReply._id;
+      }
+
       comment.replies.push({
         username: req.user.username,
         name: currentUser?.name || "",
@@ -186,6 +196,7 @@ router.post("/:id/comments", protect, async (req, res) => {
           replyTo && replyTo !== req.user.username
             ? replyTo
             : comment.username,
+        parentId,
       });
     } else {
       post.comments.push({

@@ -9,14 +9,12 @@ import Paper from "@mui/material/Paper";
 import SendIcon from "@mui/icons-material/Send";
 import ReplyIcon from "@mui/icons-material/Reply";
 import DeleteIcon from "@mui/icons-material/Delete";
-
 import API from "../services/api";
 import { timeAgo } from "../utils/time";
 import { gradientFor } from "../utils/avatar";
 
 const SHOW_LIMIT = 10;
 
-// Avatar image component with error handling
 function AvatarWithFallback({ src, sx, children, ...props }) {
   const [error, setError] = useState(false);
   return (
@@ -44,93 +42,98 @@ function renderWithMentions(text = "") {
   );
 }
 
+// Build a nested tree from the flat replies array (each reply stores parentId)
+function buildReplyTree(replies = []) {
+  const nodes = {};
+  replies.forEach((r) => {
+    nodes[r._id] = { ...r, children: [] };
+  });
+  const roots = [];
+  replies.forEach((r) => {
+    const parent = r.parentId ? nodes[r.parentId] : null;
+    if (parent && r.parentId !== r._id) parent.children.push(nodes[r._id]);
+    else roots.push(nodes[r._id]);
+  });
+  return roots;
+}
+
 function CommentItem({ item, isReply, currentUser, onReply, onDeleteComment }) {
   const initial = item.username.charAt(0).toUpperCase();
   const avatarUrl = item.avatar || null;
   const isOwner = currentUser?.username === item.username;
 
   return (
-    <Box
-      sx={{
-        mb: 1.5,
-        p: 1.25,
-        borderRadius: 2.25,
-        background: isReply ? "rgba(120,150,255,0.035)" : "rgba(120,150,255,0.055)",
-        border: isReply ? "1px solid rgba(120,150,255,0.09)" : "1px solid rgba(120,150,255,0.14)",
-      }}
-    >
-      <Box sx={{ display: "flex", gap: 1.25, alignItems: "flex-start" }}>
-        <AvatarWithFallback
-          src={avatarUrl}
-          sx={{
-            width: isReply ? 30 : 36,
-            height: isReply ? 30 : 36,
-            fontSize: isReply ? 12 : 14,
-            background: gradientFor(item.username),
-            flexShrink: 0,
-          }}
-        >
-          {initial}
-        </AvatarWithFallback>
+    <Box sx={{ display: "flex", gap: 1.25, alignItems: "flex-start" }}>
+      <AvatarWithFallback
+        src={avatarUrl}
+        sx={{
+          width: isReply ? 28 : 36,
+          height: isReply ? 28 : 36,
+          fontSize: isReply ? 10.5 : 14,
+          background: gradientFor(item.username),
+          flexShrink: 0,
+        }}
+      >
+        {initial}
+      </AvatarWithFallback>
 
-        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-            <Typography variant="body1" sx={{ fontWeight: 700, fontSize: 14 }}>
-              {item.name || item.username}
-            </Typography>
-            {item.name && (
-              <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12.5 }}>
-                @{item.username}
-              </Typography>
-            )}
-            <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 12 }}>
-              · {timeAgo(item.createdAt)}
-            </Typography>
-
-            <Box sx={{ ml: "auto", display: "flex", gap: 0.25, alignItems: "center" }}>
-              {isOwner && (
-                <IconButton
-                  size="small"
-                  title="Delete"
-                  sx={{ p: 0.5, color: "text.secondary", "&:hover": { color: "error.main" } }}
-                  onClick={() => onDeleteComment(item._id)}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              )}
-              <IconButton
-                size="small"
-                title="Reply"
-                sx={{ p: 0.5, color: "text.secondary", "&:hover": { color: "primary.main" } }}
-                onClick={onReply}
-              >
-                <ReplyIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          </Box>
-
-          {isReply && item.replyTo && (
-            <Typography variant="body2" sx={{ mt: 0.5, fontSize: 12.5, color: "text.secondary" }}>
-              Replying to{" "}
-              <Box component="span" sx={{ color: "primary.main", fontWeight: 600 }}>
-                @{item.replyTo}
-              </Box>
+      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
+          <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 13.5 }}>
+            {item.name || item.username}
+          </Typography>
+          {item.name && (
+            <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 12 }}>
+              @{item.username}
             </Typography>
           )}
-
-          <Typography
-            variant="body2"
-            sx={{
-              mt: isReply ? 0.5 : 1,
-              fontSize: 14,
-              lineHeight: 1.6,
-              color: "text.primary",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {renderWithMentions(item.text)}
+          <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 11.5 }}>
+            · {timeAgo(item.createdAt)}
           </Typography>
+
+          <Box sx={{ ml: "auto", display: "flex", gap: 0.15, alignItems: "center" }}>
+            {isOwner && (
+              <IconButton
+                size="small"
+                title="Delete"
+                sx={{ p: 0.4, color: "text.disabled", "&:hover": { color: "error.main" } }}
+                onClick={() => onDeleteComment(item._id)}
+              >
+                <DeleteIcon sx={{ fontSize: 15 }} />
+              </IconButton>
+            )}
+            <IconButton
+              size="small"
+              title="Reply"
+              sx={{ p: 0.4, color: "text.disabled", "&:hover": { color: "primary.main" } }}
+              onClick={onReply}
+            >
+              <ReplyIcon sx={{ fontSize: 15 }} />
+            </IconButton>
+          </Box>
         </Box>
+
+        {isReply && item.replyTo && (
+          <Typography variant="caption" sx={{ display: "block", mt: 0.15, fontSize: 12, color: "text.secondary" }}>
+            Replying to{" "}
+            <Box component="span" sx={{ color: "primary.main", fontWeight: 600 }}>
+              @{item.replyTo}
+            </Box>
+          </Typography>
+        )}
+
+        <Typography
+          variant="body2"
+          sx={{
+            mt: isReply ? 0.15 : 0.3,
+            fontSize: 14,
+            lineHeight: 1.5,
+            color: "text.primary",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {renderWithMentions(item.text)}
+        </Typography>
       </Box>
     </Box>
   );
@@ -140,6 +143,7 @@ function CommentSection({ post, onComment }) {
   const [comment, setComment] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyToCommentId, setReplyToCommentId] = useState(null);
+  const [replyToId, setReplyToId] = useState(null);
   const [sending, setSending] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
@@ -169,12 +173,14 @@ function CommentSection({ post, onComment }) {
       const response = await API.post(`/posts/${post._id}/comments`, {
         text: comment,
         commentId: replyingTo ? replyToCommentId : null,
+        replyToId: replyingTo ? replyToId : null,
         replyTo: replyingTo ? replyingTo.username : null,
       });
       onComment(response.data.post);
       setComment("");
       setReplyingTo(null);
       setReplyToCommentId(null);
+      setReplyToId(null);
     } catch (error) {
       console.error(error);
     } finally {
@@ -191,10 +197,31 @@ function CommentSection({ post, onComment }) {
     }
   }
 
-  function startReply(item) {
+  function startReply(item, parentCommentId, parentReplyId) {
     setReplyingTo(item);
-    setReplyToCommentId(item._topCommentId);
+    setReplyToCommentId(parentCommentId);
+    setReplyToId(parentReplyId || null);
     setComment(`@${item.username} `);
+  }
+
+  // Recursively render a reply thread with a left connector line for nesting
+  function renderThread(nodes, depth, parentCommentId) {
+    return nodes.map((node) => (
+      <Fragment key={node._id}>
+        <CommentItem
+          item={node}
+          isReply
+          currentUser={currentUser}
+          onReply={() => startReply(node, parentCommentId, node._id)}
+          onDeleteComment={handleDeleteComment}
+        />
+        {node.children.length > 0 && (
+          <Box sx={{ pl: 3, mt: 0.5, borderLeft: "2px solid rgba(120,150,255,0.18)" }}>
+            {renderThread(node.children, depth + 1, parentCommentId)}
+          </Box>
+        )}
+      </Fragment>
+    ));
   }
 
   return (
@@ -220,28 +247,25 @@ function CommentSection({ post, onComment }) {
       )}
 
       {/* Comment List */}
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-        {visibleComments.map((item) => (
-          <Fragment key={item._id}>
-            <CommentItem
-              item={item}
-              currentUser={currentUser}
-              onReply={() => startReply({ ...item, _topCommentId: item._id })}
-              onDeleteComment={handleDeleteComment}
-            />
-
-            {item.replies?.length > 0 && item.replies.map((reply) => (
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.75 }}>
+        {visibleComments.map((comment) => {
+          const tree = buildReplyTree(comment.replies);
+          return (
+            <Fragment key={comment._id}>
               <CommentItem
-                key={reply._id}
-                item={reply}
-                isReply
+                item={comment}
                 currentUser={currentUser}
-                onReply={() => startReply({ ...reply, _topCommentId: item._id })}
+                onReply={() => startReply(comment, comment._id, null)}
                 onDeleteComment={handleDeleteComment}
               />
-            ))}
-          </Fragment>
-        ))}
+              {tree.length > 0 && (
+                <Box sx={{ pl: 3, mt: 0.5, borderLeft: "2px solid rgba(120,150,255,0.18)" }}>
+                  {renderThread(tree, 1, comment._id)}
+                </Box>
+              )}
+            </Fragment>
+          );
+        })}
       </Box>
 
       {/* Show more / less */}
@@ -303,6 +327,7 @@ function CommentSection({ post, onComment }) {
           onClick={() => {
             setReplyingTo(null);
             setReplyToCommentId(null);
+            setReplyToId(null);
             setComment("");
           }}
         >
