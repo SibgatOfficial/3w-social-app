@@ -24,6 +24,11 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    name: {
+      type: String,
+      default: "",
+    },
+
     following: [
       {
         type: String,

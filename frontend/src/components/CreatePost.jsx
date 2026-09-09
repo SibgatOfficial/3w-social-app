@@ -104,7 +104,7 @@ function CreatePost({ onPostCreated }) {
 
   return (
     <Card
-      className="hover-lift"
+      className="hover-subtle"
       variant="outlined"
       sx={{ mb: 2, borderRadius: 3 }}
     >

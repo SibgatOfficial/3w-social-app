@@ -2,15 +2,16 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
-import Typography from "@mui/material/Typography";
 import Avatar from "@mui/material/Avatar";
-import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import LogoutIcon from "@mui/icons-material/Logout";
-import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import TextField from "@mui/material/TextField";
+import { gradientFor } from "../utils/avatar";
 import API from "../services/api";
-import { uploadImage } from "../services/upload";
 
 function getCurrentUser() {
   try {
@@ -23,104 +24,130 @@ function getCurrentUser() {
 function Navbar() {
   const navigate = useNavigate();
   const user = getCurrentUser();
+  const initial = user?.username?.charAt(0).toUpperCase() || "U";
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
 
   function handleLogout() {
-    setMenuOpen(false);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
   }
 
-  async function handleAvatarChange(file) {
-    if (!file) return;
-    setMenuOpen(false);
-
+  async function updateProfile(updates) {
     try {
-      const avatarUrl = await uploadImage(file);
-      const response = await API.put("/auth/avatar", { avatarUrl });
-
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-      navigate(0); // force re-render to show the new avatar
+      const res = await API.put("/auth/profile", updates);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
     } catch (error) {
       console.error(error);
     }
   }
 
+  async function handleAvatarChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // reuse Cloudinary upload
+      const { uploadImage } = await import("../services/upload");
+      const url = await uploadImage(file);
+      await updateProfile({ avatarUrl: url });
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  const [editNameOpen, setEditNameOpen] = useState(false);
+  const [nameInput, setNameInput] = useState(user?.name || "");
+
+  async function handleNameSave() {
+    await updateProfile({ name: nameInput });
+    setEditNameOpen(false);
+  }
+
   return (
-    <AppBar
-      position="sticky"
-      elevation={0}
-      sx={{
-        bgcolor: "rgba(11, 17, 33, 0.78)",
-        backdropFilter: "blur(10px)",
-        borderBottom: "1px solid rgba(120, 150, 255, 0.14)",
-      }}
-    >
-      <Toolbar sx={{ px: 2, gap: 1 }}>
-        <Typography
-          sx={{
-            flexGrow: 1,
-            fontWeight: 800,
-            letterSpacing: -0.5,
-            fontSize: 26,
-            color: "#f5f7ff",
-          }}
-        >
-          Social
-        </Typography>
+    <>
+      <AppBar position="sticky" color="transparent" elevation={0} sx={{ mb: 2 }}>
+        <Toolbar sx={{ justifyContent: "space-between", px: { xs: 1, sm: 2 } }}>
+          <Typography
+            variant="h5"
+            component="div"
+            sx={{
+              fontWeight: 800,
+              flexGrow: 1,
+              className: "gradient-text",
+            }}
+          >
+            Social
+          </Typography>
 
-        <IconButton
-          title="Profile"
-          onClick={(e) => {
-            setMenuAnchor(e.currentTarget);
-            setMenuOpen(true);
-          }}
-        >
-          {user?.avatar ? (
-            <Avatar src={user.avatar} sx={{ width: 40, height: 40 }} />
-          ) : (
-            <Avatar
-              className="pop-in"
-              sx={{
-                background: "linear-gradient(135deg, #1685ff, #7c5cff)",
-                width: 40,
-                height: 40,
-              }}
-            >
-              {user?.username?.charAt(0).toUpperCase() || "U"}
-            </Avatar>
-          )}
-        </IconButton>
+          <IconButton
+            size="small"
+            onClick={(e) => setAnchorEl(e.currentTarget)}
+            sx={{ p: 0.5 }}
+            title={user?.username || "Account"}
+          >
+            {user?.avatar ? (
+              <Avatar
+                src={user.avatar}
+                alt={user.username}
+                sx={{ width: 42, height: 42, fontSize: 16 }}
+              />
+            ) : (
+              <Avatar
+                sx={{
+                  width: 42,
+                  height: 42,
+                  fontSize: 16,
+                  background: gradientFor(user?.username),
+                }}
+              >
+                {initial}
+              </Avatar>
+            )}
+          </IconButton>
+        </Toolbar>
+      </AppBar>
 
-        <IconButton title="Logout" onClick={handleLogout}>
-          <LogoutIcon />
-        </IconButton>
-      </Toolbar>
-
+      {/* Profile dropdown — only avatar menu (change photo, edit name, logout) */}
       <Menu
-        open={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        anchorEl={menuAnchor}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        anchorEl={anchorEl}
+        open={open}
+        onClose={() => setAnchorEl(null)}
+        onClick={() => setAnchorEl(null)}
+        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+        MenuListProps={{ "aria-labelledby": "profile-menu" }}
       >
-        <MenuItem dense component="label">
-          <PhotoCameraIcon fontSize="small" sx={{ mr: 1 }} /> Change photo
+        <MenuItem
+          component="label"
+          htmlFor="avatar-upload"
+          sx={{ gap: 1, cursor: "pointer" }}
+        >
+          Change photo
           <input
+            id="avatar-upload"
             type="file"
             accept="image/*"
             hidden
-            onChange={(e) => handleAvatarChange(e.target.files[0])}
+            onChange={handleAvatarChange}
           />
         </MenuItem>
-        <MenuItem dense onClick={handleLogout}>
-          <LogoutIcon fontSize="small" sx={{ mr: 1 }} /> Logout
+
+        <MenuItem
+          onClick={() => setEditNameOpen(true)}
+          sx={{ cursor: "pointer" }}
+        >
+          Edit name
+        </MenuItem>
+
+        <Divider />
+        <MenuItem onClick={handleLogout} sx={{ gap: 1, cursor: "pointer" }}>
+          Logout
         </MenuItem>
       </Menu>
-    </AppBar>
+    </>
   );
 }
 

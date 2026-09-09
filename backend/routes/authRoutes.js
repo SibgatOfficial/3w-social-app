@@ -13,14 +13,10 @@ router.get("/me", protect, (req, res) => {
   });
 });
 
-// Update profile picture
-router.put("/avatar", protect, async (req, res) => {
+// Update profile — avatar and/or display name
+router.put("/profile", protect, async (req, res) => {
   try {
-    const { avatarUrl } = req.body;
-
-    if (!avatarUrl) {
-      return res.status(400).json({ message: "Avatar URL is required" });
-    }
+    const { avatarUrl, name } = req.body;
 
     const user = await User.findById(req.user.userId);
 
@@ -28,16 +24,24 @@ router.put("/avatar", protect, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    user.avatar = avatarUrl;
+    if (avatarUrl !== undefined) {
+      user.avatar = avatarUrl;
+    }
+
+    if (name !== undefined) {
+      user.name = String(name).trim().slice(0, 40);
+    }
+
     await user.save();
 
     res.json({
-      message: "Profile picture updated",
+      message: "Profile updated",
       user: {
         id: user._id,
         username: user.username,
         email: user.email,
         avatar: user.avatar,
+        name: user.name,
       },
     });
   } catch (error) {
@@ -76,6 +80,7 @@ router.post("/signup", async (req, res) => {
         username: user.username,
         email: user.email,
         avatar: user.avatar,
+        name: user.name,
       },
     });
   } catch (error) {
@@ -129,6 +134,7 @@ router.post("/login", async (req, res) => {
         username: user.username,
         email: user.email,
         avatar: user.avatar,
+        name: user.name,
       },
     });
   } catch (error) {

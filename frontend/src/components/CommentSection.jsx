@@ -149,7 +149,17 @@ function CommentSection({ post, onComment }) {
         </Box>
       ))}
 
-      <Divider sx={{ my: 1.25 }} />
+            <Divider sx={{ my: 1.25 }} />
+
+      {post.comments?.length > 0 && (
+        <Typography
+          variant="subtitle2"
+          color="text.secondary"
+          sx={{ mb: 1.25, fontSize: 12.5, fontWeight: 600, letterSpacing: 0.5 }}
+        >
+          Comments
+        </Typography>
+      )}
 
       <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5 }}>
         <TextField

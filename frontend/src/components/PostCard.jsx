@@ -130,7 +130,7 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
   }
 
   return (
-    <Card className="hover-lift" variant="outlined" sx={{ mb: 2, borderRadius: 3 }}>
+    <Card className="hover-subtle" variant="outlined" sx={{ mb: 2, borderRadius: 3 }}>
       <CardHeader
         avatar={
           post.avatar ? (

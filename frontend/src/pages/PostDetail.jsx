@@ -70,12 +70,29 @@ function PostDetail() {
     );
   }
 
+    // Restore scroll position when returning to the feed via browser back
+  useEffect(() => {
+    const handleScroll = () => {
+      sessionStorage.setItem("feedScroll", String(window.scrollY));
+    };
+
+    // Restore scroll position after navigation
+    const savedScroll = sessionStorage.getItem("feedScroll");
+    if (savedScroll) {
+      const y = parseInt(savedScroll, 10);
+      window.scrollTo(0, y);
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <>
       <Navbar />
 
       <Container maxWidth="sm" sx={{ pt: 2, pb: 4 }}>
-        <IconButton size="small" className="fluid-press" onClick={() => navigate(-1)}>
+        <IconButton size="small" className="fluid-press" onClick={() => navigate(-1)} sx={{ mb: 1 }}>
           <ArrowBackIcon />
         </IconButton>
 
