@@ -12,6 +12,26 @@ import API from "../services/api";
 import { timeAgo } from "../utils/time";
 import { gradientFor } from "../utils/avatar";
 
+// Highlights @mentions in blue with a small gap, so the tag and the
+// actual message stay visually apart (Discord-style)
+function renderWithMentions(text = "") {
+  const parts = text.split(/(@[A-Za-z0-9_]+)/g);
+
+  return parts.map((part, i) =>
+    part.startsWith("@") ? (
+      <Typography
+        key={i}
+        component="span"
+        sx={{ color: "primary.main", fontWeight: 600, mr: 0.5 }}
+      >
+        {part}
+      </Typography>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  );
+}
+
 // Shared comment list + reply composer used in the feed and on the detail page
 function CommentSection({ post, onComment }) {
   const [comment, setComment] = useState("");
@@ -58,34 +78,33 @@ function CommentSection({ post, onComment }) {
 
             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.2 }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.3 }}>
                   {item.username}
                 </Typography>
 
                 <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 11.5 }}>
                   · {timeAgo(item.createdAt)}
                 </Typography>
+
+                <IconButton
+                  size="small"
+                  className="fluid-press"
+                  title="Reply"
+                  sx={{
+                    ml: "auto",
+                    p: "4px",
+                    color: "text.secondary",
+                    "&:hover": { color: "primary.main" },
+                  }}
+                  onClick={() => startReply(item)}
+                >
+                  <ReplyIcon fontSize="small" />
+                </IconButton>
               </Box>
 
-              <Typography variant="body2" sx={{ fontSize: 14, lineHeight: 1.5, color: "#c9cedf", whiteSpace: "pre-wrap" }}>
-                {item.text}
+              <Typography variant="body2" sx={{ mt: 0.25, fontSize: 14, lineHeight: 1.5, color: "#c9cedf", whiteSpace: "pre-wrap" }}>
+                {renderWithMentions(item.text)}
               </Typography>
-
-              <IconButton
-                size="small"
-                className="fluid-press"
-                title="Reply"
-                sx={{
-                  mt: 0.25,
-                  p: "4px",
-                  fontSize: 16,
-                  color: "text.secondary",
-                  "&:hover": { color: "primary.main" },
-                }}
-                onClick={() => startReply(item)}
-              >
-                <ReplyIcon fontSize="small" />
-              </IconButton>
             </Box>
           </Box>
 
@@ -119,8 +138,8 @@ function CommentSection({ post, onComment }) {
                       </Typography>
                     </Box>
 
-                    <Typography variant="body2" sx={{ fontSize: 14, lineHeight: 1.5, color: "#c9cedf", whiteSpace: "pre-wrap" }}>
-                      {reply.text}
+                    <Typography variant="body2" sx={{ mt: 0.25, fontSize: 14, lineHeight: 1.5, color: "#c9cedf", whiteSpace: "pre-wrap" }}>
+                      {renderWithMentions(reply.text)}
                     </Typography>
                   </Box>
                 </Box>
