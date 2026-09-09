@@ -48,6 +48,25 @@ function PostDetail() {
     };
   }, [id]);
 
+  // Refresh post when profile is updated (name or avatar changed)
+  useEffect(() => {
+    const handleProfileUpdated = () => {
+      // Re-fetch the post to get updated user info
+      async function refreshPost() {
+        try {
+          const response = await API.get(`/posts/${id}`);
+          setPost(response.data.post);
+        } catch (err) {
+          console.error("Error refreshing post:", err);
+        }
+      }
+      refreshPost();
+    };
+
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    return () => window.removeEventListener("profile-updated", handleProfileUpdated);
+  }, [id]);
+
   if (!token) {
     return <Navigate to="/login" replace />;
   }

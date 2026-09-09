@@ -44,6 +44,16 @@ function Home() {
     }
   }, [fetchPosts, token]);
 
+  // Refresh feed when profile is updated (name or avatar changed)
+  useEffect(() => {
+    const handleProfileUpdated = () => {
+      fetchPosts(1);
+    };
+
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    return () => window.removeEventListener("profile-updated", handleProfileUpdated);
+  }, [fetchPosts]);
+
   // Save scroll position before leaving the page
   useEffect(() => {
     const handleScroll = () => {

@@ -48,9 +48,8 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [reported, setReported] = useState(false);
-
-  // Live clock — keeps poll countdowns ticking without any interaction
   const [now, setNow] = useState(0);
+  const [avatarError, setAvatarError] = useState(false);
 
   useEffect(() => {
     const tick = () => setNow(Date.now());
@@ -66,19 +65,22 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
   const isLiked = post.likes?.includes(currentUser?.username);
   const initial = post.username?.charAt(0).toUpperCase() || "U";
   const longText = (post.text || "").length > MAX_CHARS;
-  const shownText = longText && !expanded
-    ? `${post.text.slice(0, MAX_CHARS).trimEnd()}…`
-    : post.text;
+  const shownText =
+    longText && !expanded
+      ? `${post.text.slice(0, MAX_CHARS).trimEnd()}…`
+      : post.text;
+
+  // Avatar URL - use the stored Cloudinary URL directly
+  const avatarUrl = post.avatar || null;
 
   const poll = post.poll;
   const pollEnded =
     !poll?.endsAt || (now > 0 && new Date(poll.endsAt).getTime() <= now);
-  const myVote = poll?.options?.findIndex(
-    (opt) => opt.votes?.includes(currentUser?.username),
+  const myVote = poll?.options?.findIndex((opt) =>
+    opt.votes?.includes(currentUser?.username),
   );
   const totalVotes =
-    poll?.options?.reduce((sum, opt) => sum + (opt.votes?.length || 0), 0) ||
-    0;
+    poll?.options?.reduce((sum, opt) => sum + (opt.votes?.length || 0), 0) || 0;
   const voted = myVote !== undefined && myVote !== -1;
 
   async function handleLike() {
@@ -113,14 +115,11 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
     navigate(`/post/${post._id}`);
   }
 
-  // Format display name - always show "Name @username"
-  const displayName = post.name || post.username;
-
   return (
     <Card
       className="fade-up"
       sx={{
-        mb: showComments ? 4 : 2.5,
+        mb: showComments ? 1 : 2.5,
         borderRadius: 4,
         overflow: "visible",
         "&:hover": { boxShadow: "0 8px 32px rgba(0,0,0,0.35)" },
@@ -130,14 +129,15 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
         sx={{ pt: 2.5, pb: 1.5, px: 2.5 }}
         avatar={
           <Avatar
-            src={post.avatar}
+            src={avatarError ? null : avatarUrl}
             sx={{
-              width: 46,
-              height: 46,
-              fontSize: 17,
+              width: 48,
+              height: 48,
+              fontSize: 18,
               background: gradientFor(post.username),
               cursor: "pointer",
             }}
+            imgProps={{ onError: () => setAvatarError(true) }}
             onClick={() => navigate(`/profile/${post.username}`)}
           >
             {initial}
@@ -156,20 +156,22 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
           </IconButton>
         }
         title={
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
             <Typography
-              variant="subtitle2"
-              sx={{ fontWeight: 700, cursor: "pointer" }}
+              variant="subtitle1"
+              sx={{ fontWeight: 700, cursor: "pointer", fontSize: 15 }}
               onClick={() => navigate(`/profile/${post.username}`)}
             >
-              {displayName}
+              {post.name || post.username}
             </Typography>
-            <Typography
-              variant="caption"
-              sx={{ color: "text.disabled" }}
-            >
-              @{post.username}
-            </Typography>
+            {post.name && (
+              <Typography
+                variant="body2"
+                sx={{ color: "text.secondary", fontSize: 13 }}
+              >
+                @{post.username}
+              </Typography>
+            )}
           </Box>
         }
         subheader={timeAgo(post.createdAt)}
@@ -177,8 +179,8 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
 
       <CardContent sx={{ py: 0.5, px: 2.5 }}>
         <Typography
-          variant="body2"
-          sx={{ whiteSpace: "pre-wrap", lineHeight: 1.6, fontSize: 14.5 }}
+          variant="body1"
+          sx={{ whiteSpace: "pre-wrap", lineHeight: 1.6, fontSize: 15 }}
         >
           {shownText}
         </Typography>
@@ -186,7 +188,6 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
         {longText && (
           <Button
             size="small"
-            className="fluid-press"
             onClick={() => setExpanded((v) => !v)}
             sx={{ mt: 0.5, textTransform: "none" }}
           >
@@ -199,7 +200,6 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
             component="img"
             src={post.image}
             alt="post"
-            className="fade-up"
             sx={{
               mt: 1.5,
               width: "100%",
@@ -222,19 +222,19 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
               border: "1px solid rgba(120,150,255,0.15)",
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+            <Box
+              sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}
+            >
               <PollIcon fontSize="small" color="primary" />
               <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                 {poll.question}
               </Typography>
             </Box>
-
             {poll.options?.map((opt, i) => {
               const percent = totalVotes
                 ? Math.round((opt.votes?.length / totalVotes) * 100)
                 : 0;
               const isMine = myVote === i;
-
               return (
                 <Box
                   key={i}
@@ -244,19 +244,25 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
                     p: 1.25,
                     borderRadius: 2,
                     cursor: pollEnded || voted ? "default" : "pointer",
-                    border: isMine
-                      ? "1.5px solid"
-                      : "1.5px solid transparent",
+                    border: isMine ? "1.5px solid" : "1.5px solid transparent",
                     borderColor: isMine ? "primary.main" : "transparent",
                     background: "rgba(255,255,255,0.03)",
-                    "&:hover": pollEnded || voted ? {} : { background: "rgba(120,150,255,0.1)" },
+                    "&:hover":
+                      pollEnded || voted
+                        ? {}
+                        : { background: "rgba(120,150,255,0.1)" },
                   }}
                 >
-                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      mb: 0.5,
+                    }}
+                  >
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
                       {OPTION_LABELS[i]}. {opt.text}
                     </Typography>
-
                     <Typography
                       variant="caption"
                       sx={{ fontWeight: 600, color: "text.secondary" }}
@@ -264,7 +270,6 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
                       {percent}%
                     </Typography>
                   </Box>
-
                   {(pollEnded || voted) && (
                     <LinearProgress
                       variant="determinate"
@@ -273,7 +278,6 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
                       color={isMine ? "error" : "primary"}
                     />
                   )}
-
                   {isMine && (
                     <Typography
                       variant="caption"
@@ -285,7 +289,6 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
                 </Box>
               );
             })}
-
             <Typography
               variant="caption"
               sx={{
@@ -297,7 +300,9 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
                 fontSize: 12,
               }}
             >
-              {pollEnded ? "Poll ended" : `${totalVotes} vote${totalVotes === 1 ? "" : "s"} · ${pollTimeLeft(poll.endsAt)}`}
+              {pollEnded
+                ? "Poll ended"
+                : `${totalVotes} vote${totalVotes === 1 ? "" : "s"} · ${pollTimeLeft(poll.endsAt)}`}
             </Typography>
           </Box>
         )}
@@ -315,67 +320,65 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
             Thanks for reporting — we'll look into it.
           </Typography>
         )}
+      </CardContent>
 
-        <CardActions sx={{ px: 2, py: 1 }}>
-          <Box sx={{ position: "relative", display: "inline-flex" }}>
-            {isLiked && likeAnim > 0 && (
-              <FavoriteIcon
-                key={likeAnim}
-                className="heart-burst"
-                sx={{
-                  color: "#ff3b5c",
-                  position: "absolute",
-                  inset: 0,
-                  zIndex: 1,
-                  pointerEvents: "none",
-                }}
-              />
-            )}
-            <IconButton
-              key={isLiked ? `liked-${likeAnim}` : `plain-${likeAnim}`}
-              className={isLiked && likeAnim > 0 ? "heart-pop" : undefined}
-              size="small"
-              sx={{ color: isLiked ? "#ff3b5c" : "text.secondary" }}
-              onClick={handleLike}
-              title="Like"
-            >
-              {isLiked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-              <Typography component="span" sx={{ ml: 0.5 }}>
-                {post.likes.length}
-              </Typography>
-            </IconButton>
-          </Box>
-
+      <CardActions sx={{ px: 2, py: 1 }}>
+        <Box sx={{ position: "relative", display: "inline-flex" }}>
+          {isLiked && likeAnim > 0 && (
+            <FavoriteIcon
+              key={likeAnim}
+              className="heart-burst"
+              sx={{
+                color: "#ff3b5c",
+                position: "absolute",
+                inset: 0,
+                zIndex: 1,
+                pointerEvents: "none",
+              }}
+            />
+          )}
           <IconButton
+            key={isLiked ? `liked-${likeAnim}` : `plain-${likeAnim}`}
+            className={isLiked && likeAnim > 0 ? "heart-pop" : undefined}
             size="small"
-            className="fluid-press"
-            sx={{ color: "text.secondary" }}
-            onClick={() => navigate(`/post/${post._id}`)}
-            title="Comment"
+            sx={{ color: isLiked ? "#ff3b5c" : "text.secondary" }}
+            onClick={handleLike}
+            title="Like"
           >
-            <CommentIcon />
+            {isLiked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
             <Typography component="span" sx={{ ml: 0.5 }}>
-              {post.comments.length}
+              {post.likes.length}
             </Typography>
           </IconButton>
-        </CardActions>
+        </Box>
+        <IconButton
+          size="small"
+          sx={{ color: "text.secondary" }}
+          onClick={openComments}
+          title="Comment"
+        >
+          <CommentIcon />
+          <Typography component="span" sx={{ ml: 0.5 }}>
+            {post.comments.length}
+          </Typography>
+        </IconButton>
+      </CardActions>
 
-        {showComments && (
-          <CardContent sx={{ pt: 0.5, pb: 1.5 }}>
-            <CommentSection post={post} onComment={onUpdate} />
-          </CardContent>
-        )}
+      {showComments && (
+        <CardContent sx={{ pt: 0, pb: 1 }}>
+          <CommentSection post={post} onComment={onUpdate} />
+        </CardContent>
+      )}
 
-        <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
-          <DialogContent>Delete this post?</DialogContent>
-          <DialogActions>
-            <Button onClick={() => setConfirmDelete(false)}>Cancel</Button>
-            <Button color="error" onClick={handleDelete}>
-              Delete
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </CardContent>
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
+        <DialogContent>Delete this post?</DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDelete(false)}>Cancel</Button>
+          <Button color="error" onClick={handleDelete}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Menu
         anchorEl={menuAnchor}
@@ -397,6 +400,10 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
             onClick={() => {
               setMenuOpen(false);
               setReported(true);
+
+              setTimeout(() => {
+                setReported(false);
+              }, 500);
             }}
           >
             <FlagIcon fontSize="small" sx={{ mr: 1 }} />

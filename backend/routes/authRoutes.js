@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const Post = require("../models/Post");
 const jwt = require("jsonwebtoken");
 const router = express.Router();
 
@@ -13,7 +14,7 @@ router.get("/me", protect, (req, res) => {
   });
 });
 
-// CHECK USERNAME AVAILABILITY
+// Check username availability
 router.get("/check-username/:username", async (req, res) => {
   try {
     const { username } = req.params;
@@ -59,6 +60,49 @@ router.put("/profile", protect, async (req, res) => {
     }
 
     await user.save();
+
+    // Update all posts by this user with new name and/or avatar
+    const postUpdates = {};
+    if (name !== undefined) postUpdates.name = user.name;
+    if (avatarUrl !== undefined) postUpdates.avatar = user.avatar;
+
+    if (Object.keys(postUpdates).length > 0) {
+      // Update post documents by this user
+      await Post.updateMany({ username: user.username }, { $set: postUpdates });
+
+      // Update comments by this user in ALL posts (including other users' posts)
+      const allPosts = await Post.find({
+        $or: [
+          { "comments.username": user.username },
+          { "comments.replies.username": user.username },
+        ],
+      });
+
+      for (const post of allPosts) {
+        let modified = false;
+        // Update top-level comments
+        post.comments.forEach((comment) => {
+          if (comment.username === user.username) {
+            if (name !== undefined) comment.name = user.name;
+            if (avatarUrl !== undefined) comment.avatar = user.avatar;
+            modified = true;
+          }
+          // Update replies
+          if (comment.replies && comment.replies.length > 0) {
+            comment.replies.forEach((reply) => {
+              if (reply.username === user.username) {
+                if (name !== undefined) reply.name = user.name;
+                if (avatarUrl !== undefined) reply.avatar = user.avatar;
+                modified = true;
+              }
+            });
+          }
+        });
+        if (modified) {
+          await post.save();
+        }
+      }
+    }
 
     res.json({
       message: "Profile updated",
