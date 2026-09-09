@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import Container from "@mui/material/Container";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -43,6 +42,27 @@ function Home() {
       return () => clearTimeout(timer);
     }
   }, [fetchPosts, token]);
+
+  // Infinite scroll — fetch the next page automatically when the
+  // sentinel at the bottom of the feed scrolls into view
+  const loadMoreRef = useRef(null);
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          fetchPosts(page + 1, true);
+        }
+      },
+      { rootMargin: "240px" }, // start loading slightly before reaching the bottom
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [fetchPosts, hasMore, loading, page]);
 
   function handlePostUpdate(updatedPost) {
     setPosts((prev) =>
@@ -112,17 +132,12 @@ function Home() {
           </Box>
         )}
 
-        {hasMore && (
-          <Box sx={{ textAlign: "center", py: 2 }}>
-            <Button
-              className="pill-btn"
-              variant="contained"
-              color="primary"
-              startIcon={loading ? <CircularProgress size={18} /> : undefined}
-              onClick={() => fetchPosts(page + 1, true)}
-            >
-              Load more
-            </Button>
+        {/* Sentinel — auto-loads the next page when scrolled into view */}
+        {hasMore && <Box ref={loadMoreRef} sx={{ height: 8 }} />}
+
+        {loading && (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+            <CircularProgress size={28} />
           </Box>
         )}
       </Container>

@@ -49,76 +49,84 @@ function CommentSection({ post, onComment }) {
       )}
 
       {post.comments.map((item) => (
-        <Box key={item._id} className="comment-item" sx={{ display: "flex", gap: 1, mb: 1, alignItems: "flex-start" }}>
-          <Avatar sx={{ width: 30, height: 30, fontSize: 13, background: gradientFor(item.username) }}>
-            {item.username.charAt(0).toUpperCase()}
-          </Avatar>
+        <Box key={item._id} className="comment-item" sx={{ mb: 1.5 }}>
+          {/* Comment */}
+          <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+            <Avatar sx={{ width: 28, height: 28, fontSize: 12.5, background: gradientFor(item.username) }}>
+              {item.username.charAt(0).toUpperCase()}
+            </Avatar>
 
-          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.2 }}>
-                {item.username}
-              </Typography>
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.2 }}>
+                  {item.username}
+                </Typography>
 
-              <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 11.5 }}>
-                · {timeAgo(item.createdAt)}
-              </Typography>
-            </Box>
-
-            <Typography variant="body2" sx={{ fontSize: 14, lineHeight: 1.5, color: "#c9cedf", whiteSpace: "pre-wrap" }}>
-              {item.text}
-            </Typography>
-
-            {item.replies?.map((reply) => (
-              <Box
-                key={reply._id}
-                className="reply-thread"
-                sx={{
-                  display: "flex",
-                  gap: 0.75,
-                  mt: 0.75,
-                  alignItems: "flex-start",
-                  bgcolor: "rgba(255,255,255,0.04)",
-                  borderLeft: "3px solid rgba(124,140,255,0.2)",
-                  borderRadius: 1,
-                  p: 0.75,
-                }}
-              >
-                <Avatar sx={{ width: 22, height: 22, fontSize: 11, background: gradientFor(reply.username) }}>
-                  {reply.username.charAt(0).toUpperCase()}
-                </Avatar>
-
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 12.5, lineHeight: 1.2 }}>
-                    {reply.username}
-                    <Typography component="span" sx={{ color: "text.disabled", fontSize: 12 }}>
-                      {" "}→ @{reply.replyTo}
-                    </Typography>
-                  </Typography>
-
-                  <Typography variant="body2" sx={{ fontSize: 13, lineHeight: 1.45, color: "#c9cedf" }}>
-                    {reply.text}
-                  </Typography>
-                </Box>
+                <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 11.5 }}>
+                  · {timeAgo(item.createdAt)}
+                </Typography>
               </Box>
-            ))}
 
-            <IconButton
-              size="small"
-              className="fluid-press"
-              title="Reply"
-              sx={{
-                mt: 0.25,
-                p: "4px",
-                fontSize: 16,
-                color: "text.secondary",
-                "&:hover": { color: "primary.main" },
-              }}
-              onClick={() => startReply(item)}
-            >
-              <ReplyIcon fontSize="small" />
-            </IconButton>
+              <Typography variant="body2" sx={{ fontSize: 14, lineHeight: 1.5, color: "#c9cedf", whiteSpace: "pre-wrap" }}>
+                {item.text}
+              </Typography>
+
+              <IconButton
+                size="small"
+                className="fluid-press"
+                title="Reply"
+                sx={{
+                  mt: 0.25,
+                  p: "4px",
+                  fontSize: 16,
+                  color: "text.secondary",
+                  "&:hover": { color: "primary.main" },
+                }}
+                onClick={() => startReply(item)}
+              >
+                <ReplyIcon fontSize="small" />
+              </IconButton>
+            </Box>
           </Box>
+
+          {/* Replies nested under their comment (tree) */}
+          {item.replies?.length > 0 && (
+            <Box
+              sx={{
+                mt: 1,
+                ml: 1.5,
+                pl: 2,
+                borderLeft: "2px solid rgba(124,140,255,0.22)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 1,
+              }}
+            >
+              {item.replies.map((reply) => (
+                <Box key={reply._id} className="reply-item" sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+                  <Avatar sx={{ width: 28, height: 28, fontSize: 12.5, background: gradientFor(reply.username) }}>
+                    {reply.username.charAt(0).toUpperCase()}
+                  </Avatar>
+
+                  <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.2 }}>
+                        {reply.username}
+                      </Typography>
+
+                      <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 11.5 }}>
+                        · {timeAgo(reply.createdAt)}
+                      </Typography>
+                    </Box>
+
+                    <Typography variant="body2" sx={{ fontSize: 14, lineHeight: 1.5, color: "#c9cedf", whiteSpace: "pre-wrap" }}>
+                      {reply.text}
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          )}
         </Box>
       ))}
 
