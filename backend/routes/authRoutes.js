@@ -13,7 +13,33 @@ router.get("/me", protect, (req, res) => {
   });
 });
 
-// Update profile — avatar and/or display name
+// CHECK USERNAME AVAILABILITY
+router.get("/check-username/:username", async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    if (!username || username.length < 3) {
+      return res.json({ available: false, message: "Username must be at least 3 characters" });
+    }
+    
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return res.json({ available: false, message: "Only letters, numbers, and underscores allowed" });
+    }
+    
+    const existingUser = await User.findOne({ username: username.toLowerCase() });
+    
+    if (existingUser) {
+      return res.json({ available: false, message: "Username is already taken" });
+    }
+    
+    res.json({ available: true, message: "Username is available" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ available: false, message: "Server error" });
+  }
+});
+
+// Update profile
 router.put("/profile", protect, async (req, res) => {
   try {
     const { avatarUrl, name } = req.body;
@@ -39,7 +65,6 @@ router.put("/profile", protect, async (req, res) => {
       user: {
         id: user._id,
         username: user.username,
-        email: user.email,
         avatar: user.avatar,
         name: user.name,
       },
@@ -50,16 +75,43 @@ router.put("/profile", protect, async (req, res) => {
   }
 });
 
+// SIGNUP - no email needed
 router.post("/signup", async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, password, name, avatar } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-
-    if (existingUser) {
+    // Validate required fields
+    if (!username || !password || !name) {
       return res.status(400).json({
-        message: "User already exists",
+        message: "Username, password, and display name are required",
+      });
+    }
+
+    // Validate username format
+    if (username.length < 3) {
+      return res.status(400).json({
+        message: "Username must be at least 3 characters",
+      });
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return res.status(400).json({
+        message: "Username can only contain letters, numbers, and underscores",
+      });
+    }
+
+    // Validate display name is different from username
+    if (name.trim().toLowerCase() === username.trim().toLowerCase()) {
+      return res.status(400).json({
+        message: "Display name must be different from username",
+      });
+    }
+
+    // Check if username already exists
+    const existingUsername = await User.findOne({ username: username.toLowerCase() });
+    if (existingUsername) {
+      return res.status(400).json({
+        message: "Username already taken",
       });
     }
 
@@ -68,40 +120,52 @@ router.post("/signup", async (req, res) => {
 
     // Create user
     const user = await User.create({
-      username,
-      email,
+      username: username.toLowerCase(),
+      email: username.toLowerCase() + "@social.app", // auto-generate email
       password: hashedPassword,
+      name: name.trim().slice(0, 40),
+      avatar: avatar || "",
     });
+
+    // Create JWT token
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        username: user.username,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "7d",
+      },
+    );
 
     res.status(201).json({
       message: "User created successfully",
+      token,
       user: {
         id: user._id,
         username: user.username,
-        email: user.email,
         avatar: user.avatar,
         name: user.name,
       },
     });
   } catch (error) {
     console.error(error);
-
-    res.status(500).json({
-      message: "Server error",
-    });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
+// LOGIN with username
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    // Find user
-    const user = await User.findOne({ email });
+    // Find user by username
+    const user = await User.findOne({ username: username?.toLowerCase() });
 
     if (!user) {
       return res.status(400).json({
-        message: "Invalid email or password",
+        message: "Invalid username or password",
       });
     }
 
@@ -110,7 +174,7 @@ router.post("/login", async (req, res) => {
 
     if (!isPasswordCorrect) {
       return res.status(400).json({
-        message: "Invalid email or password",
+        message: "Invalid username or password",
       });
     }
 
@@ -132,17 +196,13 @@ router.post("/login", async (req, res) => {
       user: {
         id: user._id,
         username: user.username,
-        email: user.email,
         avatar: user.avatar,
         name: user.name,
       },
     });
   } catch (error) {
     console.error(error);
-
-    res.status(500).json({
-      message: "Server error",
-    });
+    res.status(500).json({ message: "Server error" });
   }
 });
 module.exports = router;

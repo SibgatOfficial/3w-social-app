@@ -54,8 +54,8 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
 
   useEffect(() => {
     const tick = () => setNow(Date.now());
-    const first = setTimeout(tick, 0); // initial tick (async)
-    const timer = setInterval(tick, 30000); // keep countdowns live
+    const first = setTimeout(tick, 0);
+    const timer = setInterval(tick, 30000);
     return () => {
       clearTimeout(first);
       clearInterval(timer);
@@ -70,7 +70,6 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
     ? `${post.text.slice(0, MAX_CHARS).trimEnd()}…`
     : post.text;
 
-  // ---- Poll helpers ----
   const poll = post.poll;
   const pollEnded =
     !poll?.endsAt || (now > 0 && new Date(poll.endsAt).getTime() <= now);
@@ -94,29 +93,14 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
 
   async function handleVote(index) {
     try {
-      const response = await API.post(`/posts/${post._id}/vote`, {
-        optionIndex: index,
-      });
+      const response = await API.post(`/posts/${post._id}/vote`, { index });
       onUpdate(response.data.post);
     } catch (error) {
       console.error(error);
     }
   }
 
-  async function handleReport() {
-    setMenuOpen(false);
-    try {
-      await API.post(`/posts/${post._id}/report`);
-      setReported(true);
-      setTimeout(() => setReported(false), 2600);
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
   async function handleDelete() {
-    setMenuOpen(false);
-    setConfirmDelete(false);
     try {
       await API.delete(`/posts/${post._id}`);
       onDelete(post._id);
@@ -129,148 +113,156 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
     navigate(`/post/${post._id}`);
   }
 
+  // Format display name - always show "Name @username"
+  const displayName = post.name || post.username;
+
   return (
-    <Card className="hover-subtle" variant="outlined" sx={{ mb: 2, borderRadius: 3 }}>
+    <Card
+      className="fade-up"
+      sx={{
+        mb: showComments ? 4 : 2.5,
+        borderRadius: 4,
+        overflow: "visible",
+        "&:hover": { boxShadow: "0 8px 32px rgba(0,0,0,0.35)" },
+      }}
+    >
       <CardHeader
+        sx={{ pt: 2.5, pb: 1.5, px: 2.5 }}
         avatar={
-          post.avatar ? (
-            <Avatar src={post.avatar} sx={{ width: 40, height: 40 }} />
-          ) : (
-            <Avatar sx={{ background: gradientFor(post.username) }}>{initial}</Avatar>
-          )
+          <Avatar
+            src={post.avatar}
+            sx={{
+              width: 46,
+              height: 46,
+              fontSize: 17,
+              background: gradientFor(post.username),
+              cursor: "pointer",
+            }}
+            onClick={() => navigate(`/profile/${post.username}`)}
+          >
+            {initial}
+          </Avatar>
         }
-        title={post.username}
-        subheader={`@${post.username} · ${timeAgo(post.createdAt)}`}
         action={
           <IconButton
-            title="More"
+            size="small"
             onClick={(e) => {
-              setMenuAnchor(e.currentTarget);
               setMenuOpen(true);
+              setMenuAnchor(e.currentTarget);
             }}
+            title="More"
           >
             <MoreVertIcon />
           </IconButton>
         }
-      />
-
-      <Menu
-        open={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        anchorEl={menuAnchor}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        {isOwnPost && (
-          <MenuItem dense onClick={() => setConfirmDelete(true)}>
-            <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
-          </MenuItem>
-        )}
-        <MenuItem dense onClick={handleReport}>
-          <FlagIcon fontSize="small" sx={{ mr: 1 }} /> Report
-        </MenuItem>
-      </Menu>
-      {post.text && (
-        <CardContent sx={{ py: 1 }}>
-          <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
-            {shownText}
-          </Typography>
-
-          {longText && (
-            <Button
-              size="small"
-              className="fluid-press"
-              sx={{
-                p: "2px 8px",
-                minWidth: 0,
-                fontSize: 12.5,
-                fontWeight: 600,
-                textTransform: "none",
-                color: "primary.main",
-              }}
-              onClick={() => setExpanded(!expanded)}
+        title={
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Typography
+              variant="subtitle2"
+              sx={{ fontWeight: 700, cursor: "pointer" }}
+              onClick={() => navigate(`/profile/${post.username}`)}
             >
-              {expanded ? "Read less" : "Read more"}
-            </Button>
-          )}
-        </CardContent>
-      )}
-
-      {post.image && (
-        <Box
-          component="img"
-          src={post.image}
-          alt="Post"
-          sx={{
-            width: "100%",
-            maxHeight: 600,
-            objectFit: "contain",
-            borderRadius: 3,
-            display: "block",
-            bgcolor: "#0a0f22",
-          }}
-        />
-      )}
-
-      {poll?.question && (
-        <Box
-          className="poll-box"
-          sx={{
-            bgcolor: "rgba(120,150,255,0.07)",
-            borderRadius: 2,
-            p: 1.5,
-            mx: 1.5,
-            mt: 1,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <PollIcon sx={{ fontSize: 18, color: "primary.main" }} />
-            <Typography sx={{ fontWeight: 600, fontSize: 15 }}>
-              {poll.question}
+              {displayName}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{ color: "text.disabled" }}
+            >
+              @{post.username}
             </Typography>
           </Box>
+        }
+        subheader={timeAgo(post.createdAt)}
+      />
 
-          {poll.options.map((option, i) => {
-            const votes = option.votes?.length || 0;
-            const percent = totalVotes ? Math.round((votes / totalVotes) * 100) : 0;
-            const isMine = i === myVote;
-            const interactive = !pollEnded && !voted;
+      <CardContent sx={{ py: 0.5, px: 2.5 }}>
+        <Typography
+          variant="body2"
+          sx={{ whiteSpace: "pre-wrap", lineHeight: 1.6, fontSize: 14.5 }}
+        >
+          {shownText}
+        </Typography>
 
-            return (
-              <Box
-                key={i}
-                className="poll-option"
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  mt: 1,
-                  p: 0.75,
-                  borderRadius: 2,
-                  border: "1px solid rgba(120,150,255,0.2)",
-                  cursor: interactive ? "pointer" : "default",
-                  "&:hover": interactive
-                    ? { bgcolor: "rgba(120,150,255,0.12)", borderColor: "primary.main" }
-                    : {},
-                  bgcolor: isMine ? "rgba(255,80,120,0.12)" : "transparent",
-                }}
-                onClick={() => interactive && handleVote(i)}
-              >
-                <Typography sx={{ minWidth: 28, color: "text.secondary", fontSize: 13.5 }}>
-                  {OPTION_LABELS[i]}
-                </Typography>
+        {longText && (
+          <Button
+            size="small"
+            className="fluid-press"
+            onClick={() => setExpanded((v) => !v)}
+            sx={{ mt: 0.5, textTransform: "none" }}
+          >
+            {expanded ? "Show less" : "Read more"}
+          </Button>
+        )}
 
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography sx={{ fontSize: 14, fontWeight: isMine ? 700 : 500 }}>
-                      {option.text}
+        {post.image && (
+          <Box
+            component="img"
+            src={post.image}
+            alt="post"
+            className="fade-up"
+            sx={{
+              mt: 1.5,
+              width: "100%",
+              maxHeight: 420,
+              objectFit: "cover",
+              borderRadius: 3,
+              cursor: "pointer",
+            }}
+            onClick={() => window.open(post.image, "_blank")}
+          />
+        )}
+
+        {poll?.question && (
+          <Box
+            sx={{
+              mt: 2,
+              p: 2,
+              borderRadius: 3,
+              background: "rgba(120,150,255,0.06)",
+              border: "1px solid rgba(120,150,255,0.15)",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+              <PollIcon fontSize="small" color="primary" />
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                {poll.question}
+              </Typography>
+            </Box>
+
+            {poll.options?.map((opt, i) => {
+              const percent = totalVotes
+                ? Math.round((opt.votes?.length / totalVotes) * 100)
+                : 0;
+              const isMine = myVote === i;
+
+              return (
+                <Box
+                  key={i}
+                  onClick={() => !pollEnded && !voted && handleVote(i)}
+                  sx={{
+                    mb: 1,
+                    p: 1.25,
+                    borderRadius: 2,
+                    cursor: pollEnded || voted ? "default" : "pointer",
+                    border: isMine
+                      ? "1.5px solid"
+                      : "1.5px solid transparent",
+                    borderColor: isMine ? "primary.main" : "transparent",
+                    background: "rgba(255,255,255,0.03)",
+                    "&:hover": pollEnded || voted ? {} : { background: "rgba(120,150,255,0.1)" },
+                  }}
+                >
+                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {OPTION_LABELS[i]}. {opt.text}
                     </Typography>
 
-                    {pollEnded || voted ? (
-                      <Typography sx={{ color: "text.secondary", fontSize: 12.5 }}>
-                        {percent}%{isMine ? " · your vote" : ""}
-                      </Typography>
-                    ) : null}
+                    <Typography
+                      variant="caption"
+                      sx={{ fontWeight: 600, color: "text.secondary" }}
+                    >
+                      {percent}%
+                    </Typography>
                   </Box>
 
                   {(pollEnded || voted) && (
@@ -281,100 +273,137 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
                       color={isMine ? "error" : "primary"}
                     />
                   )}
-                </Box>
-              </Box>
-            );
-          })}
 
+                  {isMine && (
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "primary.main", fontWeight: 600 }}
+                    >
+                      {pollEnded ? " · your vote" : ""}
+                    </Typography>
+                  )}
+                </Box>
+              );
+            })}
+
+            <Typography
+              variant="caption"
+              sx={{
+                display: "block",
+                textAlign: "right",
+                mt: 0.75,
+                color: pollEnded ? "text.disabled" : "success.main",
+                fontWeight: 600,
+                fontSize: 12,
+              }}
+            >
+              {pollEnded ? "Poll ended" : `${totalVotes} vote${totalVotes === 1 ? "" : "s"} · ${pollTimeLeft(poll.endsAt)}`}
+            </Typography>
+          </Box>
+        )}
+
+        {reported && (
           <Typography
-            variant="caption"
+            variant="body2"
             sx={{
-              display: "block",
-              textAlign: "right",
-              mt: 0.75,
-              color: pollEnded ? "text.disabled" : "success.main",
-              fontWeight: 600,
-              fontSize: 12,
+              color: "success.main",
+              textAlign: "center",
+              py: 0.5,
+              fontSize: 12.5,
             }}
           >
-            {pollEnded ? "Poll ended" : `${totalVotes} vote${totalVotes === 1 ? "" : "s"} · ${pollTimeLeft(poll.endsAt)}`}
+            Thanks for reporting — we'll look into it.
           </Typography>
-        </Box>
-      )}
+        )}
 
-      {reported && (
-        <Typography
-          variant="body2"
-          sx={{
-            color: "success.main",
-            textAlign: "center",
-            py: 0.5,
-            fontSize: 12.5,
-          }}
-        >
-          Thanks for reporting — we'll look into it.
-        </Typography>
-      )}
+        <CardActions sx={{ px: 2, py: 1 }}>
+          <Box sx={{ position: "relative", display: "inline-flex" }}>
+            {isLiked && likeAnim > 0 && (
+              <FavoriteIcon
+                key={likeAnim}
+                className="heart-burst"
+                sx={{
+                  color: "#ff3b5c",
+                  position: "absolute",
+                  inset: 0,
+                  zIndex: 1,
+                  pointerEvents: "none",
+                }}
+              />
+            )}
+            <IconButton
+              key={isLiked ? `liked-${likeAnim}` : `plain-${likeAnim}`}
+              className={isLiked && likeAnim > 0 ? "heart-pop" : undefined}
+              size="small"
+              sx={{ color: isLiked ? "#ff3b5c" : "text.secondary" }}
+              onClick={handleLike}
+              title="Like"
+            >
+              {isLiked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+              <Typography component="span" sx={{ ml: 0.5 }}>
+                {post.likes.length}
+              </Typography>
+            </IconButton>
+          </Box>
 
-      <CardActions sx={{ px: 2, py: 1 }}>
-        <Box sx={{ position: "relative", display: "inline-flex" }}>
-          {isLiked && likeAnim > 0 && (
-            <FavoriteIcon
-              key={likeAnim}
-              className="heart-burst"
-              sx={{
-                color: "#ff3b5c",
-                position: "absolute",
-                inset: 0,
-                zIndex: 1,
-                pointerEvents: "none",
-              }}
-            />
-          )}
           <IconButton
-            key={isLiked ? `liked-${likeAnim}` : `plain-${likeAnim}`}
-            className={isLiked && likeAnim > 0 ? "heart-pop" : undefined}
             size="small"
-            sx={{ color: isLiked ? "#ff3b5c" : "text.secondary" }}
-            onClick={handleLike}
-            title="Like"
+            className="fluid-press"
+            sx={{ color: "text.secondary" }}
+            onClick={() => navigate(`/post/${post._id}`)}
+            title="Comment"
           >
-            {isLiked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+            <CommentIcon />
             <Typography component="span" sx={{ ml: 0.5 }}>
-              {post.likes.length}
+              {post.comments.length}
             </Typography>
           </IconButton>
-        </Box>
+        </CardActions>
 
-        <IconButton
-          size="small"
-          className="fluid-press"
-          sx={{ color: "text.secondary" }}
-          onClick={() => navigate(`/post/${post._id}`)}
-          title="Comment"
-        >
-          <CommentIcon />
-          <Typography component="span" sx={{ ml: 0.5 }}>
-            {post.comments.length}
-          </Typography>
-        </IconButton>
-      </CardActions>
+        {showComments && (
+          <CardContent sx={{ pt: 0.5, pb: 1.5 }}>
+            <CommentSection post={post} onComment={onUpdate} />
+          </CardContent>
+        )}
 
-      {showComments && (
-        <CardContent sx={{ pt: 0.5, pb: 1.5 }}>
-          <CommentSection post={post} onComment={onUpdate} />
-        </CardContent>
-      )}
+        <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
+          <DialogContent>Delete this post?</DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            <Button color="error" onClick={handleDelete}>
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </CardContent>
 
-      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
-        <DialogContent>Delete this post?</DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDelete(false)}>Cancel</Button>
-          <Button color="error" onClick={handleDelete}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <Menu
+        anchorEl={menuAnchor}
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+      >
+        {isOwnPost ? (
+          <MenuItem
+            onClick={() => {
+              setMenuOpen(false);
+              setConfirmDelete(true);
+            }}
+          >
+            <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+            Delete post
+          </MenuItem>
+        ) : (
+          <MenuItem
+            onClick={() => {
+              setMenuOpen(false);
+              setReported(true);
+            }}
+          >
+            <FlagIcon fontSize="small" sx={{ mr: 1 }} />
+            Report post
+          </MenuItem>
+        )}
+      </Menu>
     </Card>
   );
 }

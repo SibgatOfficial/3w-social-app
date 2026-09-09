@@ -7,6 +7,11 @@ const postSchema = new mongoose.Schema(
       required: true,
     },
 
+    name: {
+      type: String,
+      default: "",
+    },
+
     avatar: {
       type: String,
       default: "",
@@ -35,6 +40,16 @@ const postSchema = new mongoose.Schema(
           required: true,
         },
 
+        name: {
+          type: String,
+          default: "",
+        },
+
+        avatar: {
+          type: String,
+          default: "",
+        },
+
         text: {
           type: String,
           required: true,
@@ -45,6 +60,16 @@ const postSchema = new mongoose.Schema(
             username: {
               type: String,
               required: true,
+            },
+
+            name: {
+              type: String,
+              default: "",
+            },
+
+            avatar: {
+              type: String,
+              default: "",
             },
 
             text: {

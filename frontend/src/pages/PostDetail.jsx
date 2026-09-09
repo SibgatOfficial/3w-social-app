@@ -19,20 +19,33 @@ function PostDetail() {
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const timer = setTimeout(async () => {
+    let isMounted = true;
+    
+    async function fetchPost() {
       try {
         const response = await API.get(`/posts/${id}`);
-        setPost(response.data.post);
-      } catch {
-        setNotFound(true);
-      } finally {
-        setLoading(false);
+        if (isMounted) {
+          setPost(response.data.post);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error fetching post:", err);
+        if (isMounted) {
+          setNotFound(true);
+          setError(err.response?.data?.message || err.message || "Failed to load post");
+          setLoading(false);
+        }
       }
-    }, 0);
-
-    return () => clearTimeout(timer);
+    }
+    
+    fetchPost();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   if (!token) {
@@ -41,9 +54,12 @@ function PostDetail() {
 
   if (loading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
-        <CircularProgress />
-      </Box>
+      <>
+        <Navbar />
+        <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
+          <CircularProgress />
+        </Box>
+      </>
     );
   }
 
@@ -55,6 +71,12 @@ function PostDetail() {
           <Typography variant="h6" sx={{ mb: 2 }}>
             Post not found
           </Typography>
+          
+          {error && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {error}
+            </Typography>
+          )}
 
           <Button
             className="pill-btn"
@@ -69,23 +91,6 @@ function PostDetail() {
       </>
     );
   }
-
-    // Restore scroll position when returning to the feed via browser back
-  useEffect(() => {
-    const handleScroll = () => {
-      sessionStorage.setItem("feedScroll", String(window.scrollY));
-    };
-
-    // Restore scroll position after navigation
-    const savedScroll = sessionStorage.getItem("feedScroll");
-    if (savedScroll) {
-      const y = parseInt(savedScroll, 10);
-      window.scrollTo(0, y);
-    }
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   return (
     <>

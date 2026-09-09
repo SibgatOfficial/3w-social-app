@@ -8,7 +8,7 @@ import Box from "@mui/material/Box";
 import API from "../services/api";
 
 function Login() {
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ username: "", password: "" });
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
@@ -18,9 +18,23 @@ function Login() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    setMessage("");
+
+    if (!form.username.trim()) {
+      setMessage("Please enter your username");
+      return;
+    }
+
+    if (!form.password) {
+      setMessage("Please enter your password");
+      return;
+    }
 
     try {
-      const response = await API.post("/auth/login", form);
+      const response = await API.post("/auth/login", {
+        username: form.username.trim().toLowerCase(),
+        password: form.password,
+      });
 
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
@@ -57,14 +71,14 @@ function Login() {
         </Typography>
 
         <TextField
-          name="email"
-          label="Email"
-          type="email"
+          name="username"
+          label="Username"
           fullWidth
           margin="normal"
-          value={form.email}
+          value={form.username}
           onChange={handleChange}
           required
+          placeholder="Enter your username"
         />
 
         <TextField
@@ -76,6 +90,7 @@ function Login() {
           value={form.password}
           onChange={handleChange}
           required
+          placeholder="Enter your password"
         />
 
         {message && <Typography color="error">{message}</Typography>}

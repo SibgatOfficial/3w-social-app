@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import Container from "@mui/material/Container";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
@@ -19,6 +19,7 @@ function Home() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
+  const location = useLocation();
 
   const fetchPosts = useCallback(async (nextPage = 1, append = false) => {
     try {
@@ -43,8 +44,29 @@ function Home() {
     }
   }, [fetchPosts, token]);
 
-  // Infinite scroll — fetch the next page automatically when the
-  // sentinel at the bottom of the feed scrolls into view
+  // Save scroll position before leaving the page
+  useEffect(() => {
+    const handleScroll = () => {
+      sessionStorage.setItem("homeScrollPosition", window.scrollY.toString());
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Restore scroll position when coming back from post detail
+  useEffect(() => {
+    const savedPosition = sessionStorage.getItem("homeScrollPosition");
+    if (savedPosition && location.pathname === "/") {
+      const scrollY = parseInt(savedPosition, 10);
+      // Small delay to ensure content is loaded
+      setTimeout(() => {
+        window.scrollTo(0, scrollY);
+      }, 100);
+    }
+  }, [location.pathname, posts]);
+
+  // Infinite scroll
   const loadMoreRef = useRef(null);
 
   useEffect(() => {
@@ -57,7 +79,7 @@ function Home() {
           fetchPosts(page + 1, true);
         }
       },
-      { rootMargin: "240px" }, // start loading slightly before reaching the bottom
+      { rootMargin: "240px" },
     );
 
     observer.observe(node);
@@ -132,7 +154,6 @@ function Home() {
           </Box>
         )}
 
-        {/* Sentinel — auto-loads the next page when scrolled into view */}
         {hasMore && <Box ref={loadMoreRef} sx={{ height: 8 }} />}
 
         {loading && (
