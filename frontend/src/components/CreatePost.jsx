@@ -240,6 +240,10 @@ function CreatePost({ onPostCreated }) {
           startIcon={<SendIcon />}
           disabled={uploading}
           onClick={handleSubmit}
+          sx={{
+            borderRadius: "20px",
+            px: 2,
+          }}
         >
           {uploading ? "Uploading..." : "Post"}
         </Button>

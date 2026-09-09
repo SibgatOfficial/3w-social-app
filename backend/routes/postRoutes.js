@@ -156,7 +156,7 @@ router.post("/:id/vote", protect, async (req, res) => {
 
 router.post("/:id/comments", protect, async (req, res) => {
   try {
-    const { text, replyTo } = req.body;
+    const { text, commentId, replyTo } = req.body;
 
     if (!text || !text.trim()) {
       return res.status(400).json({ message: "Comment cannot be empty" });
@@ -170,15 +170,8 @@ router.post("/:id/comments", protect, async (req, res) => {
 
     const currentUser = await User.findOne({ username: req.user.username });
 
-    if (!replyTo) {
-      post.comments.push({
-        username: req.user.username,
-        name: currentUser?.name || "",
-        avatar: currentUser?.avatar || "",
-        text: text.trim(),
-      });
-    } else {
-      const comment = post.comments.id(replyTo);
+    if (commentId) {
+      const comment = post.comments.id(commentId);
 
       if (!comment) {
         return res.status(404).json({ message: "Comment not found" });
@@ -189,13 +182,77 @@ router.post("/:id/comments", protect, async (req, res) => {
         name: currentUser?.name || "",
         avatar: currentUser?.avatar || "",
         text: text.trim(),
-        replyTo: comment.username,
+        replyTo:
+          replyTo && replyTo !== req.user.username
+            ? replyTo
+            : comment.username,
+      });
+    } else {
+      post.comments.push({
+        username: req.user.username,
+        name: currentUser?.name || "",
+        avatar: currentUser?.avatar || "",
+        text: text.trim(),
       });
     }
 
     await post.save();
 
     res.json({ message: "Comment added", post });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.delete("/:id/comments/:commentId", protect, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const commentId = req.params.commentId;
+    let deletedComment = null;
+
+    // Check top-level comments
+    const topLevelIndex = post.comments.findIndex(
+      (c) => c._id.toString() === commentId
+    );
+    if (topLevelIndex !== -1) {
+      if (post.comments[topLevelIndex].username !== req.user.username) {
+        return res
+          .status(403)
+          .json({ message: "You can only delete your own comments" });
+      }
+      deletedComment = post.comments[topLevelIndex];
+      post.comments.splice(topLevelIndex, 1);
+    } else {
+      // Check replies inside each top-level comment
+      for (const comment of post.comments) {
+        const replyIndex = comment.replies.findIndex(
+          (r) => r._id.toString() === commentId
+        );
+        if (replyIndex !== -1) {
+          if (comment.replies[replyIndex].username !== req.user.username) {
+            return res
+              .status(403)
+              .json({ message: "You can only delete your own replies" });
+          }
+          deletedComment = comment.replies[replyIndex];
+          comment.replies.splice(replyIndex, 1);
+          break;
+        }
+      }
+    }
+
+    if (!deletedComment) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+
+    await post.save();
+    res.json({ message: "Comment deleted", post });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });

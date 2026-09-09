@@ -362,7 +362,7 @@ function Navbar() {
       ============================================== */}
 
       <AppBar
-        position="sticky"
+        position="static"
         color="transparent"
         elevation={0}
         sx={{
