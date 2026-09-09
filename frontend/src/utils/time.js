@@ -31,19 +31,19 @@ export function timeAgo(date) {
   return short;
 }
 
-// "23h left", "2d left", "Poll ended"
+// "23h 45m left", "2d 6h left", "45m left", "Poll ended"
 export function pollTimeLeft(endsAt) {
   if (!endsAt) return "Poll ended";
 
   const ms = new Date(endsAt).getTime() - Date.now();
   if (ms <= 0) return "Poll ended";
 
-  const minutes = Math.floor(ms / 60000);
-  if (minutes < 60) return `${Math.max(minutes, 1)}m left`;
+  const totalMinutes = Math.floor(ms / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
 
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h left`;
-
-  const days = Math.floor(hours / 24);
-  return `${days}d left`;
+  if (days > 0) return `${days}d ${hours}h left`;
+  if (hours > 0) return `${hours}h ${minutes}m left`;
+  return `${Math.max(minutes, 1)}m left`;
 }
