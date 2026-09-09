@@ -350,7 +350,7 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
           size="small"
           className="fluid-press"
           sx={{ color: "text.secondary" }}
-          onClick={openComments}
+          onClick={() => navigate(`/post/${post._id}`)}
           title="Comment"
         >
           <CommentIcon />
