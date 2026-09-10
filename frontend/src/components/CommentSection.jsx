@@ -17,7 +17,8 @@ import API from "../services/api";
 import { timeAgo } from "../utils/time";
 import { gradientFor } from "../utils/avatar";
 
-const SHOW_LIMIT = 10;
+const SHOW_LIMIT = 10; // top-level comments per page
+const REPLY_BATCH = 10; // replies loaded at a time per expanded comment
 const MAX_DEPTH = 3;
 
 function AvatarWithFallback({ src, sx, children, ...props }) {
@@ -62,7 +63,7 @@ function buildReplyTree(replies = []) {
   return roots;
 }
 
-function CommentItem({ item, depth, currentUser, onReply, onRequestDelete }) {
+function CommentItem({ item, depth, currentUser, onReply, onRequestDelete, expandControl }) {
   const initial = item.username.charAt(0).toUpperCase();
   const avatarUrl = item.avatar || null;
   const isOwner = currentUser?.username === item.username;
@@ -72,10 +73,10 @@ function CommentItem({ item, depth, currentUser, onReply, onRequestDelete }) {
     <Box
       sx={{
         display: "flex",
-        gap: 1.25,
+        gap: { xs: 1, sm: 1.25 },
         alignItems: "flex-start",
-        p: 1.25,
-        borderRadius: 2,
+        p: { xs: 0.75, sm: 1.25 },
+        borderRadius: { xs: 1.5, sm: 2.5 },
         background: "rgba(120,150,255,0.055)",
         "&:hover": { background: "rgba(120,150,255,0.09)" },
         transition: "background 0.15s ease",
@@ -84,9 +85,9 @@ function CommentItem({ item, depth, currentUser, onReply, onRequestDelete }) {
       <AvatarWithFallback
         src={avatarUrl}
         sx={{
-          width: isReply ? 30 : 38,
-          height: isReply ? 30 : 38,
-          fontSize: isReply ? 11 : 15,
+          width: isReply ? { xs: 26, sm: 34 } : { xs: 32, sm: 40 },
+          height: isReply ? { xs: 26, sm: 34 } : { xs: 32, sm: 40 },
+          fontSize: isReply ? { xs: 10, sm: 12 } : { xs: 13, sm: 15 },
           background: gradientFor(item.username),
           flexShrink: 0,
         }}
@@ -96,7 +97,7 @@ function CommentItem({ item, depth, currentUser, onReply, onRequestDelete }) {
 
       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
-          <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 14 }}>
+          <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 15 }}>
             {item.name || item.username}
           </Typography>
           {item.name && (
@@ -108,7 +109,7 @@ function CommentItem({ item, depth, currentUser, onReply, onRequestDelete }) {
             · {timeAgo(item.createdAt)}
           </Typography>
 
-          <Box sx={{ ml: "auto", display: "flex", gap: 0.1, alignItems: "center" }}>
+          <Box sx={{ ml: "auto", display: "flex", gap: 0.25, alignItems: "center" }}>
             {isOwner && (
               <IconButton
                 size="small"
@@ -116,7 +117,7 @@ function CommentItem({ item, depth, currentUser, onReply, onRequestDelete }) {
                 sx={{ p: 0.4, color: "text.disabled", "&:hover": { color: "error.main", bgcolor: "rgba(244,67,54,0.08)" } }}
                 onClick={() => onRequestDelete(item)}
               >
-                <DeleteIcon sx={{ fontSize: 17 }} />
+                <DeleteIcon sx={{ fontSize: 18 }} />
               </IconButton>
             )}
             <IconButton
@@ -125,7 +126,7 @@ function CommentItem({ item, depth, currentUser, onReply, onRequestDelete }) {
               sx={{ p: 0.4, color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "rgba(120,150,255,0.1)" } }}
               onClick={onReply}
             >
-              <ReplyIcon sx={{ fontSize: 17 }} />
+              <ReplyIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Box>
         </Box>
@@ -142,15 +143,21 @@ function CommentItem({ item, depth, currentUser, onReply, onRequestDelete }) {
         <Typography
           variant="body2"
           sx={{
-            mt: 0.35,
-            fontSize: 14,
-            lineHeight: 1.55,
+            mt: { xs: 0.25, sm: 0.35 },
+            fontSize: { xs: 14, sm: 15 },
+            lineHeight: 1.6,
             color: "text.primary",
             whiteSpace: "pre-wrap",
           }}
         >
           {renderWithMentions(item.text)}
         </Typography>
+
+        {expandControl && (
+          <Box sx={{ mt: 0.5, display: "flex", alignItems: "center" }}>
+            {expandControl}
+          </Box>
+        )}
       </Box>
     </Box>
   );
@@ -164,6 +171,10 @@ function CommentSection({ post, onComment }) {
   const [sending, setSending] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  // expand = map commentId -> true/false (replies visible)
+  const [expanded, setExpanded] = useState({});
+  // replyPage = map commentId -> how many reply roots are shown
+  const [replyPage, setReplyPage] = useState({});
 
   function getCurrentUser() {
     try {
@@ -222,10 +233,22 @@ function CommentSection({ post, onComment }) {
     setComment(`@${item.username} `);
   }
 
-  // Recursively render a reply thread; cap visual nesting at MAX_DEPTH and
-  // show deeper replies as siblings of the deepest group.
-  function renderThread(nodes, depth, parentCommentId) {
-    return nodes.map((node) => (
+  // Toggle replies for a comment
+  function toggleReplies(commentId) {
+    setExpanded((prev) => {
+      const next = { ...prev, [commentId]: !prev[commentId] };
+      return next;
+    });
+  }
+
+  // Load another REPLY_BATCH of reply roots for a comment
+  function loadMoreReplies(commentId) {
+    setReplyPage((prev) => ({ ...prev, [commentId]: (prev[commentId] || 1) + 1 }));
+  }
+
+  // Recursively render a reply thread; cap depth at MAX_DEPTH, deeper as siblings.
+  const renderThread = (nodes, depth, parentCommentId) =>
+    nodes.map((node) => (
       <Fragment key={node._id}>
         <CommentItem
           item={node}
@@ -235,27 +258,26 @@ function CommentSection({ post, onComment }) {
           onRequestDelete={setConfirmDelete}
         />
         {node.children.length > 0 && depth < MAX_DEPTH && (
-          <Box sx={{ pl: 2.25, mt: 0.6, borderLeft: "2px solid rgba(120,150,255,0.18)" }}>
+          <Box sx={{ pl: { xs: 1.25, sm: 2.5 }, mt: 0.6, borderLeft: "2px solid rgba(120,150,255,0.18)" }}>
             {renderThread(node.children, depth + 1, parentCommentId)}
           </Box>
         )}
-        {/* Drop deeper-than-max children flat at the deepest visible level */}
+        {/* Drop deeper-than-max children flat at the max visible level */}
         {node.children.length > 0 && depth >= MAX_DEPTH && (
-          <Box sx={{ mt: 0.6, pl: 2.25, borderLeft: "2px solid rgba(120,150,255,0.18)" }}>
+          <Box sx={{ mt: 0.6, pl: 2.5, borderLeft: "2px solid rgba(120,150,255,0.18)" }}>
             {renderThread(node.children, MAX_DEPTH, parentCommentId)}
           </Box>
         )}
       </Fragment>
     ));
-  }
 
   return (
     <Paper
       elevation={0}
       sx={{
-        mt: 2,
-        p: 3,
-        borderRadius: 3,
+        mt: { xs: 1.5, sm: 2 },
+        p: { xs: 1.25, sm: 3 },
+        borderRadius: { xs: 2, sm: 3 },
         background: "rgba(120,150,255,0.04)",
         border: "1px solid rgba(120,150,255,0.12)",
       }}
@@ -272,9 +294,14 @@ function CommentSection({ post, onComment }) {
       )}
 
       {/* Comment List */}
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 1, sm: 1.5 } }}>
         {visibleComments.map((comment) => {
           const tree = buildReplyTree(comment.replies);
+          const isOpen = !!expanded[comment._id];
+          const perPage = replyPage[comment._id] || 1;
+          const visibleRoots = tree.slice(0, perPage * REPLY_BATCH);
+          const hiddenRoots = tree.length - visibleRoots.length;
+
           return (
             <Fragment key={comment._id}>
               <CommentItem
@@ -283,10 +310,43 @@ function CommentSection({ post, onComment }) {
                 currentUser={currentUser}
                 onReply={() => startReply(comment, comment._id, null)}
                 onRequestDelete={setConfirmDelete}
+                expandControl={
+                  tree.length > 0 ? (
+                    <Button
+                      size="small"
+                      sx={{
+                        minWidth: 0,
+                        px: 0.75,
+                        py: 0.25,
+                        textTransform: "none",
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        color: "primary.main",
+                        "&:hover": { bgcolor: "rgba(120,150,255,0.1)" },
+                      }}
+                      onClick={() => toggleReplies(comment._id)}
+                    >
+                      {isOpen
+                        ? `Hide replies (${tree.length})`
+                        : `Show replies (${tree.length})`}
+                    </Button>
+                  ) : null
+                }
               />
-              {tree.length > 0 && (
-                <Box sx={{ pl: 2.25, mt: 0.6, borderLeft: "2px solid rgba(120,150,255,0.18)" }}>
-                  {renderThread(tree, 2, comment._id)}
+
+              {isOpen && (
+                <Box sx={{ pl: { xs: 1.25, sm: 2.5 }, mt: 0.6, borderLeft: "2px solid rgba(120,150,255,0.18)" }}>
+                  {renderThread(visibleRoots, 2, comment._id)}
+
+                  {hiddenRoots > 0 && (
+                    <Button
+                      size="small"
+                      sx={{ ml: 1, mt: 0.5, textTransform: "none", fontSize: 13, fontWeight: 600, color: "primary.main" }}
+                      onClick={() => loadMoreReplies(comment._id)}
+                    >
+                      Show more replies ({hiddenRoots})
+                    </Button>
+                  )}
                 </Box>
               )}
             </Fragment>
@@ -294,12 +354,12 @@ function CommentSection({ post, onComment }) {
         })}
       </Box>
 
-      {/* Show more / less */}
+      {/* Show more / less comments */}
       {hasMore && (
         <Button
           size="small"
           color="primary"
-          sx={{ mt: 1.25, textTransform: "none", fontSize: 13 }}
+          sx={{ mt: 1.5, textTransform: "none", fontSize: 13 }}
           onClick={() => setShowAll(!showAll)}
         >
           {showAll

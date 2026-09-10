@@ -62,6 +62,11 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
   }, []);
 
   const isOwnPost = currentUser?.username === post.username;
+  // Total comment count including all nested replies / sub-replies
+  const totalComments = (post.comments || []).reduce(
+    (sum, c) => sum + 1 + (c.replies?.length || 0),
+    0,
+  );
   const isLiked = post.likes?.includes(currentUser?.username);
   const initial = post.username?.charAt(0).toUpperCase() || "U";
   const longText = (post.text || "").length > MAX_CHARS;
@@ -359,7 +364,7 @@ function PostCard({ post, onUpdate, onDelete, showComments = false }) {
         >
           <CommentIcon />
           <Typography component="span" sx={{ ml: 0.5 }}>
-            {post.comments.length}
+            {totalComments}
           </Typography>
         </IconButton>
       </CardActions>
