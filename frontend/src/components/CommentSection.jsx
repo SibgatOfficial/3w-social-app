@@ -63,6 +63,11 @@ function buildReplyTree(replies = []) {
   return roots;
 }
 
+// Recursively count every reply in a reply tree (including all sub-replies)
+function countReplies(nodes) {
+  return nodes.reduce((sum, node) => sum + 1 + countReplies(node.children || []), 0);
+}
+
 function CommentItem({ item, depth, currentUser, onReply, onRequestDelete, expandControl }) {
   const initial = item.username.charAt(0).toUpperCase();
   const avatarUrl = item.avatar || null;
@@ -327,8 +332,8 @@ function CommentSection({ post, onComment }) {
                       onClick={() => toggleReplies(comment._id)}
                     >
                       {isOpen
-                        ? `Hide replies (${tree.length})`
-                        : `Show replies (${tree.length})`}
+                        ? `Hide replies (${countReplies(tree)})`
+                        : `Show replies (${countReplies(tree)})`}
                     </Button>
                   ) : null
                 }

@@ -4,6 +4,36 @@ const protect = require("../middleware/authMiddleware");
 const User = require("../models/User");
 const router = express.Router();
 
+// Search users and posts by query term
+router.get("/search", async (req, res) => {
+  try {
+    const q = (req.query.q || "").trim();
+    if (!q) {
+      return res.json({ users: [], posts: [] });
+    }
+
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escaped, "i");
+
+    const users = await User.find({
+      $or: [{ username: regex }, { name: regex }],
+    })
+      .limit(8)
+      .select("username name avatar");
+
+    const posts = await Post.find({
+      $or: [{ text: regex }, { "poll.question": regex }],
+    })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    res.json({ users, posts });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 router.post("/", protect, async (req, res) => {
   try {
     const { text, image, poll } = req.body;
@@ -56,13 +86,16 @@ router.get("/", async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = 5;
     const skip = (page - 1) * limit;
+    const userFilter = req.query.user
+      ? { username: req.query.user }
+      : {};
 
-    const posts = await Post.find()
+    const posts = await Post.find(userFilter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const totalPosts = await Post.countDocuments();
+    const totalPosts = await Post.countDocuments(userFilter);
 
     res.json({
       posts,

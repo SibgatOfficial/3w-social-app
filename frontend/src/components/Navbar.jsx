@@ -21,6 +21,7 @@ import Alert from "@mui/material/Alert";
 import { gradientFor } from "../utils/avatar";
 import { uploadImage } from "../services/upload";
 import API from "../services/api";
+import SearchBar from "./SearchBar";
 
 // --------------------------------------------------
 // Avatar with fallback
@@ -372,6 +373,8 @@ function Navbar() {
         <Toolbar
           sx={{
             justifyContent: "space-between",
+            alignItems: "center",
+            gap: { xs: 1, sm: 2 },
             px: {
               xs: 1,
               sm: 2,
@@ -382,17 +385,32 @@ function Navbar() {
               Logo
           ------------------------------------------ */}
 
-          <Typography
-            variant="h5"
-            component="div"
+          <Box sx={{ flexShrink: 0 }}>
+            <Typography
+              sx={{
+                fontWeight: 800,
+                fontSize: { xs: "1.25rem", sm: "1.5rem" },
+                lineHeight: 1,
+              }}
+              className="gradient-text"
+            >
+              Social
+            </Typography>
+          </Box>
+
+                    {/* ------------------------------------------
+              Search bar
+          ------------------------------------------ */}
+
+          <Box
             sx={{
-              fontWeight: 800,
-              flexGrow: 1,
+              flex: { xs: 1, sm: "0 1 480px" },
+              minWidth: 0,
+              mx: "auto",
             }}
-            className="gradient-text"
           >
-            Social
-          </Typography>
+            <SearchBar />
+          </Box>
 
           {/* ------------------------------------------
               User section
@@ -400,8 +418,10 @@ function Navbar() {
 
           <Box
             sx={{
+              flexShrink: 0,
               display: "flex",
               alignItems: "center",
+              justifyContent: "flex-end",
               gap: 1.5,
             }}
           >

@@ -31,4 +31,6 @@ API.interceptors.response.use(
   },
 );
 
+export const search = (q) => API.get("/posts/search", { params: { q } });
+
 export default API;
