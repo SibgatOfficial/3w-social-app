@@ -154,6 +154,25 @@ router.post("/:id/vote", protect, async (req, res) => {
   }
 });
 
+const MAX_REPLY_LEVEL = 3;
+
+// Compute the nesting level of a reply inside a comment's flat replies list.
+// A direct reply to the comment is level 2; each nested reply increments by 1.
+function replyLevel(replies, replyId) {
+  const byId = {};
+  replies.forEach((r) => {
+    byId[r._id.toString()] = r;
+  });
+  let cur = byId[replyId.toString()];
+  if (!cur) return 2;
+  let level = 2;
+  while (cur.parentId && byId[cur.parentId]) {
+    level += 1;
+    cur = byId[cur.parentId];
+  }
+  return level;
+}
+
 router.post("/:id/comments", protect, async (req, res) => {
   try {
     const { text, commentId, replyToId, replyTo } = req.body;
@@ -177,14 +196,20 @@ router.post("/:id/comments", protect, async (req, res) => {
         return res.status(404).json({ message: "Comment not found" });
       }
 
-      // If replying to a specific reply (for nesting), verify it exists
+      // Attach reply, capping nesting at MAX_REPLY_LEVEL (3 levels total).
       let parentId = null;
       if (replyToId) {
         const parentReply = comment.replies.id(replyToId);
         if (!parentReply) {
           return res.status(404).json({ message: "Reply not found" });
         }
-        parentId = parentReply._id;
+        const parentLevel = replyLevel(comment.replies, parentReply._id);
+        if (parentLevel < MAX_REPLY_LEVEL) {
+          parentId = parentReply._id;
+        } else {
+          // Already at max depth: show this as a sibling of the parent reply
+          parentId = parentReply.parentId;
+        }
       }
 
       comment.replies.push({

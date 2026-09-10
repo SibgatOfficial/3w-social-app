@@ -6,6 +6,10 @@ import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
 import SendIcon from "@mui/icons-material/Send";
 import ReplyIcon from "@mui/icons-material/Reply";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -14,6 +18,7 @@ import { timeAgo } from "../utils/time";
 import { gradientFor } from "../utils/avatar";
 
 const SHOW_LIMIT = 10;
+const MAX_DEPTH = 3;
 
 function AvatarWithFallback({ src, sx, children, ...props }) {
   const [error, setError] = useState(false);
@@ -57,19 +62,31 @@ function buildReplyTree(replies = []) {
   return roots;
 }
 
-function CommentItem({ item, isReply, currentUser, onReply, onDeleteComment }) {
+function CommentItem({ item, depth, currentUser, onReply, onRequestDelete }) {
   const initial = item.username.charAt(0).toUpperCase();
   const avatarUrl = item.avatar || null;
   const isOwner = currentUser?.username === item.username;
+  const isReply = depth > 1;
 
   return (
-    <Box sx={{ display: "flex", gap: 1.25, alignItems: "flex-start" }}>
+    <Box
+      sx={{
+        display: "flex",
+        gap: 1.25,
+        alignItems: "flex-start",
+        p: 1.25,
+        borderRadius: 2,
+        background: "rgba(120,150,255,0.055)",
+        "&:hover": { background: "rgba(120,150,255,0.09)" },
+        transition: "background 0.15s ease",
+      }}
+    >
       <AvatarWithFallback
         src={avatarUrl}
         sx={{
-          width: isReply ? 28 : 36,
-          height: isReply ? 28 : 36,
-          fontSize: isReply ? 10.5 : 14,
+          width: isReply ? 30 : 38,
+          height: isReply ? 30 : 38,
+          fontSize: isReply ? 11 : 15,
           background: gradientFor(item.username),
           flexShrink: 0,
         }}
@@ -79,42 +96,42 @@ function CommentItem({ item, isReply, currentUser, onReply, onDeleteComment }) {
 
       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
-          <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 13.5 }}>
+          <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 14 }}>
             {item.name || item.username}
           </Typography>
           {item.name && (
-            <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 12 }}>
+            <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 12.5 }}>
               @{item.username}
             </Typography>
           )}
-          <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 11.5 }}>
+          <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 12 }}>
             · {timeAgo(item.createdAt)}
           </Typography>
 
-          <Box sx={{ ml: "auto", display: "flex", gap: 0.15, alignItems: "center" }}>
+          <Box sx={{ ml: "auto", display: "flex", gap: 0.1, alignItems: "center" }}>
             {isOwner && (
               <IconButton
                 size="small"
                 title="Delete"
-                sx={{ p: 0.4, color: "text.disabled", "&:hover": { color: "error.main" } }}
-                onClick={() => onDeleteComment(item._id)}
+                sx={{ p: 0.4, color: "text.disabled", "&:hover": { color: "error.main", bgcolor: "rgba(244,67,54,0.08)" } }}
+                onClick={() => onRequestDelete(item)}
               >
-                <DeleteIcon sx={{ fontSize: 15 }} />
+                <DeleteIcon sx={{ fontSize: 17 }} />
               </IconButton>
             )}
             <IconButton
               size="small"
               title="Reply"
-              sx={{ p: 0.4, color: "text.disabled", "&:hover": { color: "primary.main" } }}
+              sx={{ p: 0.4, color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "rgba(120,150,255,0.1)" } }}
               onClick={onReply}
             >
-              <ReplyIcon sx={{ fontSize: 15 }} />
+              <ReplyIcon sx={{ fontSize: 17 }} />
             </IconButton>
           </Box>
         </Box>
 
         {isReply && item.replyTo && (
-          <Typography variant="caption" sx={{ display: "block", mt: 0.15, fontSize: 12, color: "text.secondary" }}>
+          <Typography variant="caption" sx={{ display: "block", mt: 0.2, fontSize: 12.5, color: "text.secondary" }}>
             Replying to{" "}
             <Box component="span" sx={{ color: "primary.main", fontWeight: 600 }}>
               @{item.replyTo}
@@ -125,9 +142,9 @@ function CommentItem({ item, isReply, currentUser, onReply, onDeleteComment }) {
         <Typography
           variant="body2"
           sx={{
-            mt: isReply ? 0.15 : 0.3,
+            mt: 0.35,
             fontSize: 14,
-            lineHeight: 1.5,
+            lineHeight: 1.55,
             color: "text.primary",
             whiteSpace: "pre-wrap",
           }}
@@ -146,6 +163,7 @@ function CommentSection({ post, onComment }) {
   const [replyToId, setReplyToId] = useState(null);
   const [sending, setSending] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   function getCurrentUser() {
     try {
@@ -204,20 +222,27 @@ function CommentSection({ post, onComment }) {
     setComment(`@${item.username} `);
   }
 
-  // Recursively render a reply thread with a left connector line for nesting
+  // Recursively render a reply thread; cap visual nesting at MAX_DEPTH and
+  // show deeper replies as siblings of the deepest group.
   function renderThread(nodes, depth, parentCommentId) {
     return nodes.map((node) => (
       <Fragment key={node._id}>
         <CommentItem
           item={node}
-          isReply
+          depth={depth}
           currentUser={currentUser}
           onReply={() => startReply(node, parentCommentId, node._id)}
-          onDeleteComment={handleDeleteComment}
+          onRequestDelete={setConfirmDelete}
         />
-        {node.children.length > 0 && (
-          <Box sx={{ pl: 3, mt: 0.5, borderLeft: "2px solid rgba(120,150,255,0.18)" }}>
+        {node.children.length > 0 && depth < MAX_DEPTH && (
+          <Box sx={{ pl: 2.25, mt: 0.6, borderLeft: "2px solid rgba(120,150,255,0.18)" }}>
             {renderThread(node.children, depth + 1, parentCommentId)}
+          </Box>
+        )}
+        {/* Drop deeper-than-max children flat at the deepest visible level */}
+        {node.children.length > 0 && depth >= MAX_DEPTH && (
+          <Box sx={{ mt: 0.6, pl: 2.25, borderLeft: "2px solid rgba(120,150,255,0.18)" }}>
+            {renderThread(node.children, MAX_DEPTH, parentCommentId)}
           </Box>
         )}
       </Fragment>
@@ -236,7 +261,7 @@ function CommentSection({ post, onComment }) {
       }}
     >
       {/* Comments Header */}
-      <Typography variant="h6" sx={{ fontWeight: 700, fontSize: 16, mb: 2 }}>
+      <Typography variant="h6" sx={{ fontWeight: 700, fontSize: 17, mb: 2 }}>
         Comments {totalCommentCount > 0 && `(${totalCommentCount})`}
       </Typography>
 
@@ -247,20 +272,21 @@ function CommentSection({ post, onComment }) {
       )}
 
       {/* Comment List */}
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.75 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
         {visibleComments.map((comment) => {
           const tree = buildReplyTree(comment.replies);
           return (
             <Fragment key={comment._id}>
               <CommentItem
                 item={comment}
+                depth={1}
                 currentUser={currentUser}
                 onReply={() => startReply(comment, comment._id, null)}
-                onDeleteComment={handleDeleteComment}
+                onRequestDelete={setConfirmDelete}
               />
               {tree.length > 0 && (
-                <Box sx={{ pl: 3, mt: 0.5, borderLeft: "2px solid rgba(120,150,255,0.18)" }}>
-                  {renderThread(tree, 1, comment._id)}
+                <Box sx={{ pl: 2.25, mt: 0.6, borderLeft: "2px solid rgba(120,150,255,0.18)" }}>
+                  {renderThread(tree, 2, comment._id)}
                 </Box>
               )}
             </Fragment>
@@ -273,7 +299,7 @@ function CommentSection({ post, onComment }) {
         <Button
           size="small"
           color="primary"
-          sx={{ mt: 1.5, textTransform: "none", fontSize: 13 }}
+          sx={{ mt: 1.25, textTransform: "none", fontSize: 13 }}
           onClick={() => setShowAll(!showAll)}
         >
           {showAll
@@ -286,14 +312,7 @@ function CommentSection({ post, onComment }) {
       <Box
         component="form"
         onSubmit={handleSubmit}
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 1.5,
-          mt: 3,
-          pt: 2,
-          borderTop: "1px solid rgba(120,150,255,0.1)",
-        }}
+        sx={{ display: "flex", alignItems: "center", gap: 1.25, mt: 2.5, pt: 2, borderTop: "1px solid rgba(120,150,255,0.1)" }}
       >
         <TextField
           size="small"
@@ -308,13 +327,7 @@ function CommentSection({ post, onComment }) {
             "& fieldset": { borderColor: "rgba(120,150,255,0.2)" },
           }}
         />
-        <IconButton
-          type="submit"
-          color="primary"
-          title="Send"
-          sx={{ p: 1 }}
-          disabled={sending}
-        >
+        <IconButton type="submit" color="primary" title="Send" sx={{ p: 1 }} disabled={sending}>
           <SendIcon />
         </IconButton>
       </Box>
@@ -334,6 +347,35 @@ function CommentSection({ post, onComment }) {
           Cancel reply
         </Button>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>
+          Delete {confirmDelete && (confirmDelete.username === currentUser?.username ? "your" : "this")} comment?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button size="small" onClick={() => setConfirmDelete(null)} sx={{ textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            color="error"
+            sx={{ textTransform: "none" }}
+            onClick={() => {
+              if (confirmDelete) handleDeleteComment(confirmDelete._id);
+              setConfirmDelete(null);
+            }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 }
